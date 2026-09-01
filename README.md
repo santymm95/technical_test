@@ -1,56 +1,152 @@
-# Welcome to your Expo app 👋
+# Appmovil
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación Expo para autenticación, dashboard de usuarios y uso de almacenamiento seguro con cache offline.
 
-## Get started
+## Requisitos previos
 
-1. Install dependencies
+Antes de iniciar, asegúrate de tener instalado:
 
-   ```bash
-   npm install
-   ```
+- Node.js 20+
+- npm o yarn
+- Expo CLI
+- Android Studio + emulador Android, o iOS Simulator
+- Git
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## 1. Clonar e instalar dependencias
 
 ```bash
-npm run reset-project
+git clone <url-del-repositorio>
+cd Appmovil
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Si prefieres usar Expo CLI globalmente:
 
-### Other setup steps
+```bash
+npm install -g expo-cli
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## 2. Configurar variables de entorno
 
-## Learn more
+Copia el archivo de ejemplo y completa los valores reales:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+copy .env.example .env
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+El archivo `.env` debe incluir al menos:
 
-## Join the community
+```env
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=tu-android-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=tu-ios-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=tu-web-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_FIREBASE_API_KEY=tu_api_key
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=tu_proyecto.firebaseapp.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=tu_proyecto
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=tu_proyecto.firebasestorage.app
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
+EXPO_PUBLIC_FIREBASE_APP_ID=tu_app_id
+```
 
-Join our community of developers creating universal apps.
+## 3. Ejecutar la app
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Web
+
+```bash
+npm run web
+```
+
+### Android
+
+```bash
+npm run android
+```
+
+### iOS
+
+```bash
+npm run ios
+```
+
+### Expo dev server
+
+```bash
+npx expo start
+```
+
+## 4. Librerías principales instaladas
+
+- expo
+- expo-router
+- expo-location
+- expo-secure-store
+- expo-auth-session
+- expo-web-browser
+- firebase
+- @react-native-async-storage/async-storage
+- react-native
+- react
+- typescript
+
+## 5. Flujo principal de la app
+
+La aplicación usa:
+
+- login con email/password mediante ReqRes para la prueba
+- almacenamiento seguro del token en `expo-secure-store`
+- sesión persistente al reiniciar la app
+- listado de usuarios desde la API `randomuser.me`
+- búsqueda por nombre o email
+- caché local con `AsyncStorage`
+- geolocalización para ordenar usuarios por cercanía
+
+## 6. Buenas prácticas
+
+- No subas el archivo `.env` al repositorio.
+- Mantén los valores de Google y Firebase en variables de entorno.
+- Revisa permisos de ubicación en Android/iOS si usas geolocalización.
+- Si cambian dependencias, vuelve a instalar con:
+
+```bash
+npm install
+```
+
+## 7. Comandos útiles
+
+```bash
+npx expo start
+npx expo install expo-location expo-secure-store
+npx tsc --noEmit
+npm run android
+npm run web
+```
+
+## 8. Estructura del proyecto
+
+```text
+Appmovil/
+├── src/
+│   ├── app/
+│   ├── components/
+│   ├── context/
+│   ├── screens/
+│   └── lib/
+├── assets/
+├── .env.example
+├── .env
+├── app.json
+├── package.json
+├── README.md
+└── tsconfig.json
+```
+
+## 9. Problemas comunes
+
+- La app no inicia: revisa que Node y dependencias estén instaladas correctamente.
+- Error de variables de entorno: verifica que `.env` exista y tenga los nombres correctos.
+- Google/Firebase no funciona: confirma que el proyecto esté activo y los Client IDs estén bien configurados.
+- Permisos de ubicación: acepta los permisos al ejecutar en el emulador o dispositivo físico.
+
+## 10. Licencia
+
+Este proyecto está bajo licencia del repositorio original.
