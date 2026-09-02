@@ -45,6 +45,7 @@ type AppContextValue = {
   loginWithEmailPassword: (email: string, password: string) => Promise<void>;
   simulateLogin: (email: string) => Promise<void>;
   fetchUsers: (reset?: boolean) => Promise<void>;
+  updateUserPicture: (email: string, pictureUri: string) => Promise<void>;
   logOut: () => Promise<void>;
   clearError: () => void;
 };
@@ -179,11 +180,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         },
       );
 
-      const mergedUsers = reset ? nextUsers : [...users, ...nextUsers];
+      const baseUsers = reset ? users : [...users];
+      const mergedUsers = reset
+        ? nextUsers.map((user: UserRecord) => {
+            const cachedUser = baseUsers.find(
+              (item: UserRecord) => item.email === user.email,
+            );
+            if (!cachedUser) {
+              return user;
+            }
 
-      // Remove duplicates by email
+            return { ...user, picture: cachedUser.picture ?? user.picture };
+          })
+        : [...baseUsers, ...nextUsers];
+
       const uniqueUsers = Array.from(
-        new Map(mergedUsers.map((user: UserRecord) => [user.email, user])).values(),
+        new Map(
+          mergedUsers.map((user: UserRecord) => [user.email, user]),
+        ).values(),
       ) as UserRecord[];
 
       setUserPage(nextPage);
@@ -214,6 +228,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoadingUsers(false);
     }
+  }
+
+  async function updateUserPicture(email: string, pictureUri: string) {
+    const nextUsers = users.map((user) =>
+      user.email === email ? { ...user, picture: pictureUri } : user,
+    );
+
+    await persistUsers(nextUsers);
   }
 
   async function loginWithEmailPassword(email: string, password: string) {
@@ -303,6 +325,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       loginWithEmailPassword,
       simulateLogin,
       fetchUsers,
+      updateUserPicture,
       logOut,
       clearError: () => setErrorMessage(null),
     }),

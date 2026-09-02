@@ -1,10 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
+  Modal,
   Pressable,
   RefreshControl,
   Text,
@@ -34,6 +37,7 @@ export default function UsersScreen() {
   const {
     users,
     fetchUsers,
+    updateUserPicture,
     offline,
     errorMessage,
     userEmail,
@@ -47,6 +51,7 @@ export default function UsersScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -60,7 +65,6 @@ export default function UsersScreen() {
   useEffect(() => {
     async function getCurrentLocation() {
       try {
-        // Check if location services are enabled
         const servicesEnabled = await Location.hasServicesEnabledAsync();
         if (!servicesEnabled) {
           return;
@@ -156,11 +160,56 @@ export default function UsersScreen() {
     }
   }
 
+  async function handlePhotoChange(source: "camera" | "library") {
+    if (!selectedUser) {
+      return;
+    }
+
+    const permissionResult =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.status !== "granted") {
+      const message =
+        source === "camera"
+          ? "Se rechazó el permiso de la cámara. Puedes habilitarlo desde Ajustes."
+          : "Se rechazó el acceso a la galería. Puedes habilitarlo desde Ajustes.";
+
+      Alert.alert("Permiso requerido", message);
+      return;
+    }
+
+    const result =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            allowsEditing: true,
+            quality: 0.8,
+            mediaTypes: ["images"],
+          });
+
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      Alert.alert("Sin imagen", "No se seleccionó ninguna imagen.");
+      return;
+    }
+
+    await updateUserPicture(selectedUser.email, result.assets[0].uri);
+    setSelectedUser((current) =>
+      current ? { ...current, picture: result.assets[0].uri } : null,
+    );
+  }
+
   function renderItem({ item }: { item: UserRecord }) {
+    const avatarUri = item.picture;
+
     return (
-      <View style={styles.card}>
-        {item.picture ? (
-          <Image source={{ uri: item.picture }} style={styles.avatar} />
+      <Pressable onPress={() => setSelectedUser(item)} style={styles.card}>
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
         ) : (
           <View style={styles.avatarPlaceholder}>
             <Text style={styles.avatarPlaceholderText}>
@@ -180,7 +229,7 @@ export default function UsersScreen() {
               : ""}
           </Text>
         </View>
-      </View>
+      </Pressable>
     );
   }
 
@@ -242,6 +291,53 @@ export default function UsersScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={Boolean(selectedUser)}
+        onRequestClose={() => setSelectedUser(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Actualizar foto</Text>
+
+            {selectedUser ? (
+              <Image
+                source={{
+                  uri: selectedUser.picture,
+                }}
+                style={styles.modalAvatar}
+              />
+            ) : null}
+
+            <Text style={styles.modalSubtitle}>
+              {selectedUser?.name ?? "Usuario"}
+            </Text>
+
+            <Pressable
+              onPress={() => handlePhotoChange("camera")}
+              style={styles.primaryAction}
+            >
+              <Text style={styles.actionText}>Tomar foto</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => handlePhotoChange("library")}
+              style={styles.secondaryAction}
+            >
+              <Text style={styles.actionText}>Elegir de la galería</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setSelectedUser(null)}
+              style={styles.cancelAction}
+            >
+              <Text style={styles.cancelText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {showScrollToTop && (
         <Pressable onPress={scrollToTop} style={styles.scrollToTopButton}>

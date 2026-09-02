@@ -1,17 +1,9 @@
-import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { useState } from "react";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 
 import { AppShell } from "@/components/app-shell/app-shell";
-import { useAppContext, type UserRecord } from "@/context/app-context";
+import { useAppContext } from "@/context/app-context";
 import UsersScreen from "@/screens/users-screen";
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -34,112 +26,13 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<
     "inicio" | "usuarios" | "funciones"
   >("inicio");
-  const [selectedUserEmail, setSelectedUserEmail] = useState<string | null>(null);
-  const [profileImages, setProfileImages] = useState<Record<string, string>>({});
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [locationInfo, setLocationInfo] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [locationCity, setLocationCity] = useState<string | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-
-  useEffect(() => {
-    if (!users.length) {
-      return;
-    }
-
-    if (!selectedUserEmail || !users.some((user) => user.email === selectedUserEmail)) {
-      setSelectedUserEmail(users[0].email);
-    }
-  }, [users, selectedUserEmail]);
-
-  const selectedUser =
-    users.find((user) => user.email === selectedUserEmail) ?? users[0] ?? null;
-
-  const nearbyUsers = useMemo(() => {
-    if (!locationInfo) {
-      return [] as Array<UserRecord & { distanceKm: number | null }>;
-    }
-
-    return [...users]
-      .map((user) => {
-        if (user.latitude == null || user.longitude == null) {
-          return { ...user, distanceKm: null };
-        }
-
-        return {
-          ...user,
-          distanceKm: haversineKm(
-            locationInfo.latitude,
-            locationInfo.longitude,
-            user.latitude,
-            user.longitude,
-          ),
-        };
-      })
-      .sort((a, b) => {
-        if (a.distanceKm == null && b.distanceKm == null) {
-          return a.name.localeCompare(b.name);
-        }
-        if (a.distanceKm == null) {
-          return 1;
-        }
-        if (b.distanceKm == null) {
-          return -1;
-        }
-        return a.distanceKm - b.distanceKm;
-      });
-  }, [locationInfo, users]);
-
-  async function handleImageAction(source: "camera" | "library") {
-    if (!selectedUser) {
-      setStatusMessage("Selecciona un usuario antes de asociar una foto.");
-      return;
-    }
-
-    const permissionResult =
-      source === "camera"
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (permissionResult.status !== "granted") {
-      const detail =
-        source === "camera"
-          ? "Se rechazó el acceso a la cámara. Puedes habilitarlo desde Ajustes."
-          : "Se rechazó el acceso a la galería. Puedes habilitarlo desde Ajustes.";
-      setStatusMessage(detail);
-      Alert.alert(
-        "Permiso requerido",
-        detail,
-      );
-      return;
-    }
-
-    const result =
-      source === "camera"
-        ? await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            quality: 0.8,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            allowsEditing: true,
-            quality: 0.8,
-            mediaTypes: ["images"],
-          });
-
-    if (result.canceled || !result.assets?.[0]?.uri) {
-      setStatusMessage("No se eligió ninguna imagen.");
-      return;
-    }
-
-    setProfileImages((current) => ({
-      ...current,
-      [selectedUser.email]: result.assets[0].uri,
-    }));
-    setStatusMessage(
-      `Foto asociada a ${selectedUser.name} correctamente.`,
-    );
-  }
 
   async function handleGetLocation() {
     try {
@@ -151,7 +44,8 @@ export default function HomeScreen() {
         return;
       }
 
-      const permissionResult = await Location.requestForegroundPermissionsAsync();
+      const permissionResult =
+        await Location.requestForegroundPermissionsAsync();
       if (permissionResult.status !== "granted") {
         const message =
           "Se denegó el permiso de ubicación. Puedes habilitarlo desde Ajustes.";
@@ -169,7 +63,19 @@ export default function HomeScreen() {
         longitude: currentLocation.coords.longitude,
       };
 
+      const geoAddress = await Location.reverseGeocodeAsync({
+        latitude: nextLocation.latitude,
+        longitude: nextLocation.longitude,
+      });
+
+      const cityName =
+        geoAddress[0]?.city ??
+        geoAddress[0]?.subregion ??
+        geoAddress[0]?.region ??
+        "Ciudad no disponible";
+
       setLocationInfo(nextLocation);
+      setLocationCity(cityName);
       setStatusMessage(
         `Ubicación actual obtenida: ${nextLocation.latitude.toFixed(4)}, ${nextLocation.longitude.toFixed(4)}.`,
       );
@@ -179,6 +85,33 @@ export default function HomeScreen() {
       setIsLoadingLocation(false);
     }
   }
+
+  const nearbyUsers = locationInfo
+    ? [...users]
+        .map((user) => {
+          if (user.latitude == null || user.longitude == null) {
+            return { ...user, distanceKm: null };
+          }
+
+          return {
+            ...user,
+            distanceKm: haversineKm(
+              locationInfo.latitude,
+              locationInfo.longitude,
+              user.latitude,
+              user.longitude,
+            ),
+          };
+        })
+        .filter((user) => user.distanceKm != null)
+        .sort((a, b) => {
+          if (a.distanceKm == null || b.distanceKm == null) {
+            return 0;
+          }
+          return a.distanceKm - b.distanceKm;
+        })
+        .slice(0, 5)
+    : [];
 
   return (
     <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
@@ -214,112 +147,26 @@ export default function HomeScreen() {
               marginBottom: 20,
             }}
           >
-            Captura fotos o usa la ubicación y ordena usuarios por cercanía.
+            Obtén la ubicación actual y ordena usuarios por cercanía.
           </Text>
 
-          <View style={{ gap: 12 }}>
-            <Pressable
-              onPress={() => handleImageAction("camera")}
-              style={{
-                alignItems: "center",
-                backgroundColor: "#2563eb",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
-                Cámara
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => handleImageAction("library")}
-              style={{
-                alignItems: "center",
-                backgroundColor: "#1f2937",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
-                Galería
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleGetLocation}
-              disabled={isLoadingLocation}
-              style={{
-                alignItems: "center",
-                backgroundColor: isLoadingLocation ? "#374151" : "#16a34a",
-                borderRadius: 12,
-                opacity: isLoadingLocation ? 0.7 : 1,
-                padding: 14,
-              }}
-            >
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
-                {isLoadingLocation ? "Obteniendo ubicación..." : "Geolocalización"}
-              </Text>
-            </Pressable>
-          </View>
-
-          {selectedUser ? (
-            <View
-              style={{
-                backgroundColor: "#111827",
-                borderColor: "#1f2937",
-                borderRadius: 16,
-                borderWidth: 1,
-                marginTop: 22,
-                padding: 14,
-              }}
-            >
-              <Text style={{ color: "#cbd5e1", marginBottom: 12, fontWeight: "600" }}>
-                Usuario seleccionado
-              </Text>
-
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Image
-                  source={{
-                    uri:
-                      profileImages[selectedUser.email] ?? selectedUser.picture,
-                  }}
-                  style={{
-                    backgroundColor: "#1f2937",
-                    borderRadius: 28,
-                    height: 56,
-                    width: 56,
-                  }}
-                />
-                <View style={{ marginLeft: 12, flex: 1 }}>
-                  <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>
-                    {selectedUser.name}
-                  </Text>
-                  <Text style={{ color: "#93c5fd" }}>{selectedUser.email}</Text>
-                </View>
-              </View>
-
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
-                {users.slice(0, 4).map((user) => (
-                  <Pressable
-                    key={user.email}
-                    onPress={() => setSelectedUserEmail(user.email)}
-                    style={{
-                      backgroundColor:
-                        selectedUser.email === user.email ? "#2563eb" : "#1f2937",
-                      borderRadius: 999,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                    }}
-                  >
-                    <Text style={{ color: "#fff", fontWeight: "600" }}>
-                      {user.name.split(" ")[0]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          ) : null}
+          <Pressable
+            onPress={handleGetLocation}
+            disabled={isLoadingLocation}
+            style={{
+              alignItems: "center",
+              backgroundColor: isLoadingLocation ? "#374151" : "#16a34a",
+              borderRadius: 12,
+              opacity: isLoadingLocation ? 0.7 : 1,
+              padding: 14,
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+              {isLoadingLocation
+                ? "Obteniendo ubicación..."
+                : "Geolocalización"}
+            </Text>
+          </Pressable>
 
           {statusMessage ? (
             <Text
@@ -344,25 +191,45 @@ export default function HomeScreen() {
                 padding: 14,
               }}
             >
-              <Text style={{ color: "#f8fafc", fontSize: 18, fontWeight: "700" }}>
-                Usuarios por cercanía
+              <Text
+                style={{ color: "#f8fafc", fontSize: 18, fontWeight: "700" }}
+              >
+                Ubicación actual
               </Text>
 
-              {nearbyUsers.slice(0, 5).map((user) => (
+              <Text style={{ color: "#f8fafc", marginTop: 8, fontWeight: "600" }}>
+                {locationCity ? `Ciudad: ${locationCity}` : "Ciudad: no disponible"}
+              </Text>
+
+              <Text style={{ color: "#93c5fd", marginTop: 8 }}>
+                {locationInfo.latitude.toFixed(4)},{" "}
+                {locationInfo.longitude.toFixed(4)}
+              </Text>
+
+              <Text style={{ color: "#cbd5e1", marginTop: 16 }}>
+                Usuarios cercanos:
+              </Text>
+
+              {nearbyUsers.length === 0 ? (
+                <Text style={{ color: "#94a3b8", marginTop: 10 }}>
+                  No hay usuarios con ubicación disponible.
+                </Text>
+              ) : null}
+
+              {nearbyUsers.map((user) => (
                 <View
                   key={user.email}
                   style={{
-                    borderTopColor: "#1f2937",
-                    borderTopWidth: user.email === nearbyUsers[0]?.email ? 0 : 1,
                     flexDirection: "row",
                     justifyContent: "space-between",
-                    paddingTop: user.email === nearbyUsers[0]?.email ? 0 : 10,
-                    marginTop: user.email === nearbyUsers[0]?.email ? 10 : 10,
+                    marginTop: 10,
                   }}
                 >
                   <Text style={{ color: "#e2e8f0" }}>{user.name}</Text>
                   <Text style={{ color: "#93c5fd" }}>
-                    {user.distanceKm != null ? `${user.distanceKm.toFixed(1)} km` : "Sin ubicación"}
+                    {user.distanceKm != null
+                      ? `${user.distanceKm.toFixed(1)} km`
+                      : "Sin ubicación"}
                   </Text>
                 </View>
               ))}
