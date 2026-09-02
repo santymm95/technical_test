@@ -76,6 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loginLoading, setLoginLoading] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [userPage, setUserPage] = useState(1);
 
   useEffect(() => {
     async function hydrateSession() {
@@ -112,13 +113,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   async function fetchUsers(reset = false) {
+    if (loadingUsers) {
+      return;
+    }
+
     setLoadingUsers(true);
     setOffline(false);
     setErrorMessage(null);
 
     try {
+      const nextPage = reset ? 1 : userPage + 1;
       const response = await fetch(
-        `https://randomuser.me/api/0.8/?results=${reset ? 20 : 20}`,
+        `https://randomuser.me/api/0.8/?page=${nextPage}&results=20`,
       );
 
       if (!response.ok) {
@@ -156,7 +162,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         },
       );
 
-      await persistUsers(nextUsers);
+      const mergedUsers = reset ? nextUsers : [...users, ...nextUsers];
+
+      setUserPage(nextPage);
+      await persistUsers(mergedUsers);
     } catch (error) {
       const cachedUsers = await readCachedUsers();
       if (cachedUsers.length > 0) {

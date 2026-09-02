@@ -4,13 +4,11 @@ import {
     ActivityIndicator,
     FlatList,
     Image,
-    Pressable,
     RefreshControl,
     Text,
     TextInput,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAppContext, type UserRecord } from "@/context/app-context";
 import { styles } from "./users-screen.styles";
@@ -31,7 +29,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 export default function UsersScreen() {
-  const { users, fetchUsers, offline, errorMessage, logOut, userEmail } =
+  const { users, fetchUsers, offline, errorMessage, userEmail, loadingUsers } =
     useAppContext();
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -158,55 +156,45 @@ export default function UsersScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Usuarios</Text>
-          <Pressable onPress={() => logOut()} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>Salir</Text>
-          </Pressable>
+    <View style={styles.container}>
+      <Text style={styles.userLabel}>Cuenta: {userEmail}</Text>
+
+      {offline ? (
+        <View style={styles.cacheBanner}>
+          <Text style={styles.cacheText}>Mostrando datos guardados</Text>
         </View>
+      ) : null}
 
-        <Text style={styles.userLabel}>Cuenta: {userEmail}</Text>
+      <TextInput
+        onChangeText={setSearch}
+        placeholder="Buscar por nombre o email"
+        placeholderTextColor="#9ca3af"
+        style={styles.searchInput}
+        value={search}
+      />
 
-        {offline ? (
-          <View style={styles.cacheBanner}>
-            <Text style={styles.cacheText}>Mostrando datos guardados</Text>
-          </View>
-        ) : null}
+      {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
-        <TextInput
-          onChangeText={setSearch}
-          placeholder="Buscar por nombre o email"
-          placeholderTextColor="#9ca3af"
-          style={styles.searchInput}
-          value={search}
-        />
-
-        {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-
-        {users.length === 0 && !offline ? (
-          <ActivityIndicator
-            color="#60a5fa"
-            size="large"
-            style={styles.loader}
-          />
-        ) : (
-          <FlatList
-            contentContainerStyle={styles.listContent}
-            data={filteredUsers}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-              />
+      {users.length === 0 && !offline ? (
+        <ActivityIndicator color="#60a5fa" size="large" style={styles.loader} />
+      ) : (
+        <FlatList
+          contentContainerStyle={styles.listContent}
+          data={filteredUsers}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+          onEndReached={() => {
+            if (!loadingUsers) {
+              fetchUsers(false);
             }
-            renderItem={renderItem}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </View>
-    </SafeAreaView>
+          }}
+          onEndReachedThreshold={0.4}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </View>
   );
 }
