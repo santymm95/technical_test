@@ -1,2 +1,2 @@
-export { ThemedText } from "./themed-text";
+export { ThemedText, type ThemedTextProps } from "./themed-text";
 

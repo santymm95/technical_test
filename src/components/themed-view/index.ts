@@ -1,2 +1,2 @@
-export { ThemedView } from "./themed-view";
+export { ThemedView, type ThemedViewProps } from "./themed-view";
 

@@ -50,8 +50,12 @@ export default function UsersScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
+    if (users.length > 0 || loadingUsers) {
+      return;
+    }
+
     fetchUsers();
-  }, []);
+  }, [users.length, loadingUsers]);
 
   useEffect(() => {
     async function getCurrentLocation() {
@@ -216,7 +220,7 @@ export default function UsersScreen() {
           ref={flatListRef}
           contentContainerStyle={styles.listContent}
           data={filteredUsers}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.email}
           ListFooterComponent={
             loadingUsers ? (
               <View style={styles.footerLoader}>

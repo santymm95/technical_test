@@ -10,7 +10,9 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to calculate distances to other users."
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to calculate distances to other users.",
+        "NSCameraUsageDescription": "This app needs camera access to take a profile photo for a user.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to attach a profile image to a user."
       }
     },
     "android": {
@@ -24,7 +26,10 @@
       "package": "com.anonymous.Appmovil",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE"
       ]
     },
     "web": {

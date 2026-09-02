@@ -181,8 +181,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const mergedUsers = reset ? nextUsers : [...users, ...nextUsers];
 
+      // Remove duplicates by email
+      const uniqueUsers = Array.from(
+        new Map(mergedUsers.map((user: UserRecord) => [user.email, user])).values(),
+      ) as UserRecord[];
+
       setUserPage(nextPage);
-      await persistUsers(mergedUsers);
+      await persistUsers(uniqueUsers);
       setOffline(false);
     } catch (error) {
       const cachedUsers = await readCachedUsers();
