@@ -33,6 +33,14 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function isPhotoLocked(user: UserRecord) {
+  const hashValue = user.email
+    .split("")
+    .reduce((sum, character) => sum + character.charCodeAt(0), 0);
+
+  return hashValue % 5 === 0;
+}
+
 export default function UsersScreen() {
   const {
     users,
@@ -160,8 +168,18 @@ export default function UsersScreen() {
     }
   }
 
+  const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null);
+
   async function handlePhotoChange(source: "camera" | "library") {
     if (!selectedUser) {
+      return;
+    }
+
+    if (isPhotoLocked(selectedUser)) {
+      Alert.alert(
+        "Foto no permitida",
+        `${selectedUser.name} no ha permitido cambiar su foto de perfil.`,
+      );
       return;
     }
 
@@ -197,17 +215,32 @@ export default function UsersScreen() {
       return;
     }
 
-    await updateUserPicture(selectedUser.email, result.assets[0].uri);
+    setPendingPhotoUri(result.assets[0].uri);
     setSelectedUser((current) =>
       current ? { ...current, picture: result.assets[0].uri } : null,
     );
   }
 
+  async function applyPhotoChanges() {
+    if (!selectedUser || !pendingPhotoUri) {
+      setSelectedUser(null);
+      return;
+    }
+
+    await updateUserPicture(selectedUser.email, pendingPhotoUri);
+    setPendingPhotoUri(null);
+    setSelectedUser(null);
+  }
+
   function renderItem({ item }: { item: UserRecord }) {
     const avatarUri = item.picture;
+    const locked = isPhotoLocked(item);
 
     return (
-      <Pressable onPress={() => setSelectedUser(item)} style={styles.card}>
+      <Pressable
+        onPress={() => setSelectedUser(item)}
+        style={[styles.card, locked && styles.cardRestricted]}
+      >
         {avatarUri ? (
           <Image source={{ uri: avatarUri }} style={styles.avatar} />
         ) : (
@@ -299,42 +332,83 @@ export default function UsersScreen() {
         onRequestClose={() => setSelectedUser(null)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Actualizar foto</Text>
+          <View
+            style={[
+              styles.modalCard,
+              selectedUser &&
+                isPhotoLocked(selectedUser) &&
+                styles.modalCardRestricted,
+            ]}
+          >
+            {selectedUser && isPhotoLocked(selectedUser) ? (
+              <>
+                <Text style={styles.modalTitle}>Foto no permitida</Text>
 
-            {selectedUser ? (
-              <Image
-                source={{
-                  uri: selectedUser.picture,
-                }}
-                style={styles.modalAvatar}
-              />
-            ) : null}
+                <Image
+                  source={{ uri: selectedUser.picture }}
+                  style={styles.modalAvatar}
+                />
 
-            <Text style={styles.modalSubtitle}>
-              {selectedUser?.name ?? "Usuario"}
-            </Text>
+                <Text style={styles.modalSubtitle}>
+                  {selectedUser.name} no ha permitido cambiar su foto de perfil.
+                </Text>
 
-            <Pressable
-              onPress={() => handlePhotoChange("camera")}
-              style={styles.primaryAction}
-            >
-              <Text style={styles.actionText}>Tomar foto</Text>
-            </Pressable>
+                <Pressable
+                  onPress={() => setSelectedUser(null)}
+                  style={styles.cancelAction}
+                >
+                  <Text style={styles.cancelText}>Cerrar</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Actualizar foto</Text>
 
-            <Pressable
-              onPress={() => handlePhotoChange("library")}
-              style={styles.secondaryAction}
-            >
-              <Text style={styles.actionText}>Elegir de la galería</Text>
-            </Pressable>
+                {selectedUser ? (
+                  <Image
+                    source={{
+                      uri: selectedUser.picture,
+                    }}
+                    style={styles.modalAvatar}
+                  />
+                ) : null}
 
-            <Pressable
-              onPress={() => setSelectedUser(null)}
-              style={styles.cancelAction}
-            >
-              <Text style={styles.cancelText}>Cancelar</Text>
-            </Pressable>
+                <Text style={styles.modalSubtitle}>
+                  {selectedUser?.name ?? "Usuario"}
+                </Text>
+
+                <Pressable
+                  onPress={() => handlePhotoChange("camera")}
+                  style={styles.primaryAction}
+                >
+                  <Text style={styles.actionText}>Tomar foto</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => handlePhotoChange("library")}
+                  style={styles.secondaryAction}
+                >
+                  <Text style={styles.actionText}>Elegir de la galería</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={applyPhotoChanges}
+                  style={styles.primaryAction}
+                >
+                  <Text style={styles.actionText}>Aplicar cambios</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    setPendingPhotoUri(null);
+                    setSelectedUser(null);
+                  }}
+                  style={styles.cancelAction}
+                >
+                  <Text style={styles.cancelText}>Cancelar</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </View>
       </Modal>

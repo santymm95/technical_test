@@ -197,8 +197,12 @@ export default function HomeScreen() {
                 Ubicación actual
               </Text>
 
-              <Text style={{ color: "#f8fafc", marginTop: 8, fontWeight: "600" }}>
-                {locationCity ? `Ciudad: ${locationCity}` : "Ciudad: no disponible"}
+              <Text
+                style={{ color: "#f8fafc", marginTop: 8, fontWeight: "600" }}
+              >
+                {locationCity
+                  ? `Ciudad: ${locationCity}`
+                  : "Ciudad: no disponible"}
               </Text>
 
               <Text style={{ color: "#93c5fd", marginTop: 8 }}>

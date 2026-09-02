@@ -82,6 +82,10 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 12,
   },
+  cardRestricted: {
+    borderColor: "rgba(239, 68, 68, 0.7)",
+    borderWidth: 1,
+  },
   avatar: {
     backgroundColor: "#1f2937",
     borderRadius: 26,
@@ -150,6 +154,10 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
     width: "100%",
+  },
+  modalCardRestricted: {
+    borderColor: "rgba(239, 68, 68, 0.7)",
+    borderWidth: 1,
   },
   modalTitle: {
     color: "#fff",
