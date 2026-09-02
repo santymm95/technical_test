@@ -1,13 +1,15 @@
+import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    RefreshControl,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  RefreshControl,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 import { useAppContext, type UserRecord } from "@/context/app-context";
@@ -29,14 +31,23 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 export default function UsersScreen() {
-  const { users, fetchUsers, offline, errorMessage, userEmail, loadingUsers } =
-    useAppContext();
+  const {
+    users,
+    fetchUsers,
+    offline,
+    errorMessage,
+    userEmail,
+    lastUpdated,
+    loadingUsers,
+  } = useAppContext();
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -48,13 +59,11 @@ export default function UsersScreen() {
         // Check if location services are enabled
         const servicesEnabled = await Location.hasServicesEnabledAsync();
         if (!servicesEnabled) {
-          console.warn("Location services are disabled");
           return;
         }
 
         const permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status !== "granted") {
-          console.warn("Location permission denied");
           return;
         }
 
@@ -66,9 +75,8 @@ export default function UsersScreen() {
           latitude: current.coords.latitude,
           longitude: current.coords.longitude,
         });
-      } catch (error) {
-        console.warn("Failed to get current location:", error);
-        // Continue app functionality without location
+      } catch {
+        // Silently fail - app continues without location
       }
     }
 
@@ -127,6 +135,23 @@ export default function UsersScreen() {
     setRefreshing(false);
   }
 
+  async function handleEndReached() {
+    if (!offline && !loadingUsers) {
+      await fetchUsers(false);
+    }
+  }
+
+  function handleScroll(event: any) {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollToTop(offsetY > 300);
+  }
+
+  function scrollToTop() {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ animated: true, offset: 0 });
+    }
+  }
+
   function renderItem({ item }: { item: UserRecord }) {
     return (
       <View style={styles.card}>
@@ -161,7 +186,16 @@ export default function UsersScreen() {
 
       {offline ? (
         <View style={styles.cacheBanner}>
-          <Text style={styles.cacheText}>Mostrando datos guardados</Text>
+          <Ionicons name="wifi-outline" size={18} color="#FFA500" />
+          <View style={{ marginLeft: 10, flex: 1 }}>
+            <Text style={styles.cacheText}>Modo lectura sin conexión</Text>
+            <Text style={styles.cacheSubtext}>
+              Últimos {users.length} usuarios guardados
+              {lastUpdated
+                ? ` • ${new Date(lastUpdated).toLocaleString("es-ES", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                : ""}
+            </Text>
+          </View>
         </View>
       ) : null}
 
@@ -179,21 +213,36 @@ export default function UsersScreen() {
         <ActivityIndicator color="#60a5fa" size="large" style={styles.loader} />
       ) : (
         <FlatList
+          ref={flatListRef}
           contentContainerStyle={styles.listContent}
           data={filteredUsers}
           keyExtractor={(item) => item.id}
+          ListFooterComponent={
+            loadingUsers ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator color="#60a5fa" size="small" />
+                <Text style={styles.footerLoaderText}>
+                  Cargando más usuarios...
+                </Text>
+              </View>
+            ) : null
+          }
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
-          onEndReached={() => {
-            if (!loadingUsers) {
-              fetchUsers(false);
-            }
-          }}
-          onEndReachedThreshold={0.4}
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
         />
+      )}
+
+      {showScrollToTop && (
+        <Pressable onPress={scrollToTop} style={styles.scrollToTopButton}>
+          <Ionicons name="arrow-up" size={24} color="#fff" />
+        </Pressable>
       )}
     </View>
   );

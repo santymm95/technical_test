@@ -2,12 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import {
-    createContext,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-    type ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
 } from "react";
 
 const TOKEN_KEY = "appmovil.secure.token";
@@ -41,7 +41,9 @@ type AppContextValue = {
   loginLoading: boolean;
   sessionReady: boolean;
   errorMessage: string | null;
+  lastUpdated: string | null;
   loginWithEmailPassword: (email: string, password: string) => Promise<void>;
+  simulateLogin: (email: string) => Promise<void>;
   fetchUsers: (reset?: boolean) => Promise<void>;
   logOut: () => Promise<void>;
   clearError: () => void;
@@ -76,6 +78,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loginLoading, setLoginLoading] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [userPage, setUserPage] = useState(1);
 
   useEffect(() => {
@@ -96,6 +99,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (cachedUsers.length > 0) {
           setUsersState(cachedUsers);
         }
+
+        const raw = await AsyncStorage.getItem(USERS_CACHE_KEY);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as CachedUsersPayload;
+            if (parsed?.fetchedAt) {
+              setLastUpdated(parsed.fetchedAt);
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
       } finally {
         setSessionReady(true);
       }
@@ -105,10 +120,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function persistUsers(nextUsers: UserRecord[]) {
+    const now = new Date().toISOString();
     setUsersState(nextUsers);
+    setLastUpdated(now);
     await AsyncStorage.setItem(
       USERS_CACHE_KEY,
-      JSON.stringify({ users: nextUsers, fetchedAt: new Date().toISOString() }),
+      JSON.stringify({ users: nextUsers, fetchedAt: now }),
     );
   }
 
@@ -118,13 +135,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     setLoadingUsers(true);
-    setOffline(false);
     setErrorMessage(null);
 
     try {
       const nextPage = reset ? 1 : userPage + 1;
       const response = await fetch(
         `https://randomuser.me/api/0.8/?page=${nextPage}&results=20`,
+        { signal: AbortSignal.timeout(10000) },
       );
 
       if (!response.ok) {
@@ -166,12 +183,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       setUserPage(nextPage);
       await persistUsers(mergedUsers);
+      setOffline(false);
     } catch (error) {
       const cachedUsers = await readCachedUsers();
+
       if (cachedUsers.length > 0) {
         setUsersState(cachedUsers);
         setOffline(true);
-        setErrorMessage("Sin conexión. Mostrando datos guardados.");
+
+        const errorMsg =
+          error instanceof Error ? error.message : "Sin conexión";
+        if (errorMsg.includes("timeout")) {
+          setErrorMessage("Conexión lenta. Mostrando últimos datos guardados.");
+        } else {
+          setErrorMessage("Sin conexión. Usando últimos datos guardados.");
+        }
         return;
       }
 
@@ -227,6 +253,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function simulateLogin(email: string) {
+    if (!email.trim()) {
+      throw new Error("Ingresa un correo electrónico.");
+    }
+
+    setLoginLoading(true);
+    setErrorMessage(null);
+
+    try {
+      // Generar un token simulado
+      const simulatedToken = await hashString(
+        `simulated-${email}-${Date.now()}`,
+      );
+      await SecureStore.setItemAsync(TOKEN_KEY, simulatedToken);
+      await SecureStore.setItemAsync(USER_EMAIL_KEY, email.trim());
+      setToken(simulatedToken);
+      setUserEmail(email.trim());
+    } finally {
+      setLoginLoading(false);
+    }
+  }
+
   async function logOut() {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_EMAIL_KEY);
@@ -246,7 +294,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       loginLoading,
       sessionReady,
       errorMessage,
+      lastUpdated,
       loginWithEmailPassword,
+      simulateLogin,
       fetchUsers,
       logOut,
       clearError: () => setErrorMessage(null),
@@ -260,6 +310,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       loginLoading,
       sessionReady,
       errorMessage,
+      lastUpdated,
     ],
   );
 

@@ -36,14 +36,25 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cacheBanner: {
-    backgroundColor: "#0f766e",
+    alignItems: "center",
+    backgroundColor: "#7C2D12",
+    borderColor: "#FFA500",
+    borderLeftWidth: 4,
     borderRadius: 10,
-    marginBottom: 10,
-    padding: 10,
+    flexDirection: "row",
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   cacheText: {
-    color: "#ecfeff",
+    color: "#FBBF24",
     fontWeight: "700",
+    fontSize: 14,
+  },
+  cacheSubtext: {
+    color: "#FED7AA",
+    fontSize: 12,
+    marginTop: 2,
   },
   searchInput: {
     backgroundColor: "#111827",
@@ -60,7 +71,7 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   listContent: {
-    paddingBottom: 20,
+    paddingBottom: 80,
   },
   card: {
     backgroundColor: "#111827",
@@ -113,5 +124,32 @@ export const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 40,
+  },
+  footerLoader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingVertical: 32,
+  },
+  footerLoaderText: {
+    color: "#93c5fd",
+    fontSize: 14,
+    marginLeft: 12,
+  },
+  scrollToTopButton: {
+    alignItems: "center",
+    backgroundColor: "#3b82f6",
+    borderRadius: 50,
+    bottom: 20,
+    height: 56,
+    justifyContent: "center",
+    position: "absolute",
+    right: 20,
+    width: 56,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
