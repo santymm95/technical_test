@@ -46,7 +46,15 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Esta aplicación quiere acceder a la cámara para tomar una foto de perfil.",
+          "photosPermission": "Esta aplicación quiere acceder a tus fotos para cambiar la foto de perfil.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

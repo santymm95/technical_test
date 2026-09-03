@@ -1,7 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useEffect } from "react";
 
 import { useAppContext } from "@/context/app-context";
 import { styles } from "./app-shell.styles";
@@ -26,6 +34,34 @@ const tabs: Array<{
 
 export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
   const { userEmail, logOut } = useAppContext();
+  const contentProgress = useSharedValue(1);
+
+  useEffect(() => {
+    contentProgress.value = 0;
+    contentProgress.value = withTiming(1, { duration: 220 });
+  }, [activeTab, contentProgress]);
+
+  const contentAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: contentProgress.value,
+    transform: [{ translateX: (1 - contentProgress.value) * 18 }],
+  }));
+
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-24, 24])
+    .failOffsetY([-18, 18])
+    .onEnd((event) => {
+      if (Math.abs(event.translationX) < 60) {
+        return;
+      }
+
+      const currentIndex = tabs.findIndex((tab) => tab.key === activeTab);
+      const nextIndex =
+        event.translationX < 0 ? currentIndex + 1 : currentIndex - 1;
+
+      if (nextIndex >= 0 && nextIndex < tabs.length) {
+        runOnJS(onTabChange)(tabs[nextIndex].key);
+      }
+    });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -41,7 +77,11 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
           </Pressable>
         </View>
 
-        <View style={styles.content}>{children}</View>
+        <GestureDetector gesture={swipeGesture}>
+          <Animated.View style={[styles.content, contentAnimatedStyle]}>
+            {children}
+          </Animated.View>
+        </GestureDetector>
 
         <View style={styles.tabBar}>
           {tabs.map((tab) => {

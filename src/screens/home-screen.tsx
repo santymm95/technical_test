@@ -982,7 +982,14 @@ export default function HomeScreen() {
             </Pressable>
             {deviceLocation ? (
               <>
-                <Text style={{ color: "#F8FAFC", fontSize: 18, fontWeight: "700", marginTop: 16 }}>
+                <Text
+                  style={{
+                    color: "#F8FAFC",
+                    fontSize: 18,
+                    fontWeight: "700",
+                    marginTop: 16,
+                  }}
+                >
                   {locationCity ?? "Ciudad desconocida"}
                 </Text>
                 <Text style={{ color: "#94A3B8", marginTop: 4 }}>

@@ -183,42 +183,57 @@ export default function UsersScreen() {
       return;
     }
 
-    const permissionResult =
-      source === "camera"
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (permissionResult.status !== "granted") {
-      const message =
+    try {
+      const permissionResult =
         source === "camera"
-          ? "Se rechazó el permiso de la cámara. Puedes habilitarlo desde Ajustes."
-          : "Se rechazó el acceso a la galería. Puedes habilitarlo desde Ajustes.";
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync(false);
 
-      Alert.alert("Permiso requerido", message);
-      return;
+      if (!permissionResult.granted) {
+        Alert.alert(
+          "Permiso requerido",
+          source === "camera"
+            ? "Se rechazó el permiso de la cámara. La aplicación continúa funcionando. Puedes habilitarlo desde Ajustes."
+            : "Se rechazó el acceso a la galería. La aplicación continúa funcionando. Puedes habilitarlo desde Ajustes.",
+        );
+        return;
+      }
+
+      const result =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              quality: 0.8,
+              mediaTypes: ["images"],
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              allowsEditing: true,
+              quality: 0.8,
+              mediaTypes: ["images"],
+            });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        Alert.alert(
+          "Acción cancelada",
+          source === "camera"
+            ? "No se tomó ninguna foto."
+            : "No se seleccionó ninguna imagen.",
+        );
+        return;
+      }
+
+      setPendingPhotoUri(result.assets[0].uri);
+      setSelectedUser((current) =>
+        current ? { ...current, picture: result.assets[0].uri } : null,
+      );
+    } catch (error) {
+      Alert.alert(
+        source === "camera" ? "Error de cámara" : "Error de galería",
+        error instanceof Error
+          ? error.message
+          : "No se pudo completar la operación.",
+      );
     }
-
-    const result =
-      source === "camera"
-        ? await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            quality: 0.8,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            allowsEditing: true,
-            quality: 0.8,
-            mediaTypes: ["images"],
-          });
-
-    if (result.canceled || !result.assets?.[0]?.uri) {
-      Alert.alert("Sin imagen", "No se seleccionó ninguna imagen.");
-      return;
-    }
-
-    setPendingPhotoUri(result.assets[0].uri);
-    setSelectedUser((current) =>
-      current ? { ...current, picture: result.assets[0].uri } : null,
-    );
   }
 
   async function applyPhotoChanges() {
