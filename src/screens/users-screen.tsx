@@ -44,6 +44,7 @@ function isPhotoLocked(user: UserRecord) {
 export default function UsersScreen() {
   const {
     users,
+    isDarkMode,
     fetchUsers,
     updateUserPicture,
     offline,
@@ -269,7 +270,11 @@ export default function UsersScreen() {
           setPendingPhotoUri(null);
           setSelectedUser(item);
         }}
-        style={[styles.card, locked && styles.cardRestricted]}
+        style={[
+          styles.card,
+          !isDarkMode && { backgroundColor: "#FFFFFF", borderColor: "#D8E0EA" },
+          locked && styles.cardRestricted,
+        ]}
       >
         {avatarUri ? (
           <Image source={{ uri: avatarUri }} style={styles.avatar} />
@@ -282,9 +287,15 @@ export default function UsersScreen() {
         )}
 
         <View style={styles.userMeta}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.email}>{item.email}</Text>
-          <Text style={styles.phone}>{item.phone}</Text>
+          <Text style={[styles.name, !isDarkMode && { color: "#172033" }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.email, !isDarkMode && { color: "#087E8B" }]}>
+            {item.email}
+          </Text>
+          <Text style={[styles.phone, !isDarkMode && { color: "#526174" }]}>
+            {item.phone}
+          </Text>
           <Text style={styles.location}>
             {item.city}, {item.state}
             {item.distanceKm != null
@@ -297,8 +308,15 @@ export default function UsersScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.userLabel}>Cuenta: {userEmail}</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: isDarkMode ? "#050816" : "#F4F7FB" },
+      ]}
+    >
+      <Text style={[styles.userLabel, !isDarkMode && { color: "#526174" }]}>
+        Cuenta: {userEmail}
+      </Text>
 
       {offline ? (
         <View style={styles.cacheBanner}>
@@ -319,7 +337,14 @@ export default function UsersScreen() {
         onChangeText={setSearch}
         placeholder="Buscar por nombre o email"
         placeholderTextColor="#9ca3af"
-        style={styles.searchInput}
+        style={[
+          styles.searchInput,
+          !isDarkMode && {
+            backgroundColor: "#FFFFFF",
+            borderColor: "#B7C5D6",
+            color: "#172033",
+          },
+        ]}
         value={search}
       />
 
@@ -368,6 +393,10 @@ export default function UsersScreen() {
           <View
             style={[
               styles.modalCard,
+              !isDarkMode && {
+                backgroundColor: "#FFFFFF",
+                borderColor: "#B7C5D6",
+              },
               selectedUser &&
                 isPhotoLocked(selectedUser) &&
                 styles.modalCardRestricted,
@@ -375,14 +404,26 @@ export default function UsersScreen() {
           >
             {selectedUser && isPhotoLocked(selectedUser) ? (
               <>
-                <Text style={styles.modalTitle}>Foto no permitida</Text>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    !isDarkMode && { color: "#172033" },
+                  ]}
+                >
+                  Foto no permitida
+                </Text>
 
                 <Image
                   source={{ uri: selectedUser.picture }}
                   style={styles.modalAvatar}
                 />
 
-                <Text style={styles.modalSubtitle}>
+                <Text
+                  style={[
+                    styles.modalSubtitle,
+                    !isDarkMode && { color: "#526174" },
+                  ]}
+                >
                   {selectedUser.name} no ha permitido cambiar su foto de perfil.
                 </Text>
 
@@ -395,7 +436,14 @@ export default function UsersScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.modalTitle}>Actualizar foto</Text>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    !isDarkMode && { color: "#172033" },
+                  ]}
+                >
+                  Actualizar foto
+                </Text>
 
                 {selectedUser ? (
                   <Image
@@ -406,7 +454,12 @@ export default function UsersScreen() {
                   />
                 ) : null}
 
-                <Text style={styles.modalSubtitle}>
+                <Text
+                  style={[
+                    styles.modalSubtitle,
+                    !isDarkMode && { color: "#526174" },
+                  ]}
+                >
                   {selectedUser?.name ?? "Usuario"}
                 </Text>
 

@@ -66,7 +66,22 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 export default function HomeScreen() {
-  const { users } = useAppContext();
+  const { users, isDarkMode } = useAppContext();
+  const theme = isDarkMode
+    ? {
+        background: "#050816",
+        surface: "#091222",
+        border: "#162B46",
+        text: "#F8FAFC",
+        muted: "#CBD5E1",
+      }
+    : {
+        background: "#F4F7FB",
+        surface: "#FFFFFF",
+        border: "#D8E0EA",
+        text: "#172033",
+        muted: "#526174",
+      };
   const [activeTab, setActiveTab] = useState<
     "inicio" | "usuarios" | "funciones"
   >("inicio");
@@ -85,6 +100,9 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [agendaEvents, setAgendaEvents] = useState<AgendaEvents>({});
   const [agendaTitle, setAgendaTitle] = useState("");
+  const [editingEventIndex, setEditingEventIndex] = useState<number | null>(
+    null,
+  );
   const [isAgendaModalVisible, setIsAgendaModalVisible] = useState(false);
   const [widgetPositions, setWidgetPositions] = useState<WidgetPosition[]>([
     { id: "weather", x: 0, y: 0, order: 0 },
@@ -114,15 +132,48 @@ export default function HomeScreen() {
     }
 
     const dateKey = getDateKey(selectedDate);
+    const currentEvents = agendaEvents[dateKey] ?? [];
+    const nextDayEvents = [...currentEvents];
+
+    if (editingEventIndex == null) {
+      nextDayEvents.push(title);
+    } else {
+      nextDayEvents[editingEventIndex] = title;
+    }
+
     const nextEvents = {
       ...agendaEvents,
-      [dateKey]: [...(agendaEvents[dateKey] ?? []), title],
+      [dateKey]: nextDayEvents,
     };
 
     setAgendaEvents(nextEvents);
     setAgendaTitle("");
+    setEditingEventIndex(null);
     await AsyncStorage.setItem(AGENDA_STORAGE_KEY, JSON.stringify(nextEvents));
     setIsAgendaModalVisible(false);
+  }
+
+  async function deleteAgendaEvent(index: number) {
+    const dateKey = getDateKey(selectedDate);
+    const nextDayEvents = (agendaEvents[dateKey] ?? []).filter(
+      (_, eventIndex) => eventIndex !== index,
+    );
+    const nextEvents = { ...agendaEvents };
+
+    if (nextDayEvents.length > 0) {
+      nextEvents[dateKey] = nextDayEvents;
+    } else {
+      delete nextEvents[dateKey];
+    }
+
+    setAgendaEvents(nextEvents);
+    setAgendaTitle("");
+    setEditingEventIndex(null);
+    await AsyncStorage.setItem(AGENDA_STORAGE_KEY, JSON.stringify(nextEvents));
+
+    if (nextDayEvents.length === 0) {
+      setIsAgendaModalVisible(false);
+    }
   }
 
   async function loadWidgetPositions() {
@@ -199,19 +250,19 @@ export default function HomeScreen() {
       days.push(
         <Pressable
           key={day}
-          onPress={() =>
-            (() => {
-              setSelectedDate(
-                new Date(
-                  selectedDate.getFullYear(),
-                  selectedDate.getMonth(),
-                  day,
-                ),
-              );
-              setAgendaTitle("");
-              setIsAgendaModalVisible(true);
-            })()
-          }
+          onPress={() => {
+            const nextDate = new Date(
+              selectedDate.getFullYear(),
+              selectedDate.getMonth(),
+              day,
+            );
+            const eventsForDay = agendaEvents[getDateKey(nextDate)] ?? [];
+
+            setSelectedDate(nextDate);
+            setAgendaTitle(eventsForDay[0] ?? "");
+            setEditingEventIndex(eventsForDay.length > 0 ? 0 : null);
+            setIsAgendaModalVisible(true);
+          }}
           style={{
             width: CELL_SIZE,
             height: CELL_SIZE,
@@ -455,10 +506,12 @@ export default function HomeScreen() {
   return (
     <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === "inicio" ? (
-        <View style={{ flex: 1, backgroundColor: "#050816", padding: 20 }}>
+        <View
+          style={{ flex: 1, backgroundColor: theme.background, padding: 20 }}
+        >
           <Text
             style={{
-              color: "#F8FAFC",
+              color: theme.text,
               fontSize: 28,
               fontWeight: "800",
               marginBottom: 20,
@@ -473,8 +526,8 @@ export default function HomeScreen() {
           >
             <View
               style={{
-                backgroundColor: "#091222",
-                borderColor: "#162B46",
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
                 borderRadius: 16,
                 borderWidth: 2,
                 marginRight: "2%",
@@ -493,7 +546,7 @@ export default function HomeScreen() {
               >
                 <Text
                   style={{
-                    color: "#F8FAFC",
+                    color: theme.text,
                     fontSize: 18,
                     fontWeight: "700",
                   }}
@@ -524,7 +577,7 @@ export default function HomeScreen() {
                     <View
                       key="weather"
                       style={{
-                        backgroundColor: "#091222",
+                        backgroundColor: theme.surface,
                         borderColor: "#162B46",
                         borderRadius: 16,
                         borderWidth: 2,
@@ -543,7 +596,7 @@ export default function HomeScreen() {
                       >
                         <Text
                           style={{
-                            color: "#F8FAFC",
+                            color: theme.text,
                             fontSize: 18,
                             fontWeight: "700",
                           }}
@@ -635,7 +688,7 @@ export default function HomeScreen() {
                     <View
                       key="calendar"
                       style={{
-                        backgroundColor: "#091222",
+                        backgroundColor: theme.surface,
                         borderColor: "#162B46",
                         borderRadius: 16,
                         borderWidth: 2,
@@ -654,7 +707,7 @@ export default function HomeScreen() {
                       >
                         <Text
                           style={{
-                            color: "#F8FAFC",
+                            color: theme.text,
                             fontSize: 18,
                             fontWeight: "700",
                           }}
@@ -786,8 +839,8 @@ export default function HomeScreen() {
 
             <View
               style={{
-                backgroundColor: "#091222",
-                borderColor: "#162B46",
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
                 borderRadius: 16,
                 borderWidth: 2,
                 marginBottom: 16,
@@ -797,7 +850,7 @@ export default function HomeScreen() {
             >
               <Text
                 style={{
-                  color: "#F8FAFC",
+                  color: theme.text,
                   fontSize: 18,
                   fontWeight: "700",
                   marginBottom: 12,
@@ -865,7 +918,7 @@ export default function HomeScreen() {
                     fontWeight: "800",
                   }}
                 >
-                  Crear evento
+                  {editingEventIndex == null ? "Crear evento" : "Editar evento"}
                 </Text>
                 <Text style={{ color: "#00CFFF", marginTop: 6 }}>
                   {selectedDate.toLocaleDateString("es-ES", {
@@ -874,6 +927,69 @@ export default function HomeScreen() {
                     month: "long",
                   })}
                 </Text>
+                {(agendaEvents[getDateKey(selectedDate)] ?? []).length > 0 ? (
+                  <View style={{ marginTop: 18 }}>
+                    <Text style={{ color: "#CBD5E1", fontWeight: "700" }}>
+                      Eventos del día
+                    </Text>
+                    {(agendaEvents[getDateKey(selectedDate)] ?? []).map(
+                      (event, index) => (
+                        <View
+                          key={`${event}-${index}`}
+                          style={{
+                            alignItems: "center",
+                            flexDirection: "row",
+                            marginTop: 10,
+                          }}
+                        >
+                          <Text
+                            style={{ color: "#F8FAFC", flex: 1 }}
+                            numberOfLines={1}
+                          >
+                            {event}
+                          </Text>
+                          <Pressable
+                            onPress={() => {
+                              setEditingEventIndex(index);
+                              setAgendaTitle(event);
+                            }}
+                            style={{
+                              borderColor: "#00D9FF",
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              marginLeft: 8,
+                              paddingHorizontal: 9,
+                              paddingVertical: 6,
+                            }}
+                          >
+                            <Text
+                              style={{ color: "#00D9FF", fontWeight: "700" }}
+                            >
+                              Editar
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => deleteAgendaEvent(index)}
+                            style={{
+                              borderColor: "#FF7187",
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              marginLeft: 6,
+                              paddingHorizontal: 9,
+                              paddingVertical: 6,
+                            }}
+                          >
+                            <Text
+                              style={{ color: "#FF7187", fontWeight: "700" }}
+                            >
+                              Eliminar
+                            </Text>
+                          </Pressable>
+                        </View>
+                      ),
+                    )}
+                  </View>
+                ) : null}
                 <TextInput
                   autoFocus
                   onChangeText={setAgendaTitle}
@@ -924,7 +1040,7 @@ export default function HomeScreen() {
                     }}
                   >
                     <Text style={{ color: "#001018", fontWeight: "800" }}>
-                      Guardar
+                      {editingEventIndex == null ? "Guardar" : "Actualizar"}
                     </Text>
                   </Pressable>
                 </View>
@@ -942,16 +1058,16 @@ export default function HomeScreen() {
             flex: 1,
             justifyContent: "center",
             alignItems: "center",
-            backgroundColor: "#050816",
+            backgroundColor: theme.background,
           }}
         >
-          <Text style={{ color: "#F8FAFC", fontSize: 24, fontWeight: "700" }}>
+          <Text style={{ color: theme.text, fontSize: 24, fontWeight: "700" }}>
             Funciones
           </Text>
           <View
             style={{
-              backgroundColor: "#091222",
-              borderColor: "#162B46",
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
               borderRadius: 22,
               borderWidth: 1,
               margin: 20,
@@ -959,7 +1075,9 @@ export default function HomeScreen() {
               width: "90%",
             }}
           >
-            <Text style={{ color: "#F8FAFC", fontSize: 18, fontWeight: "700" }}>
+            <Text
+              style={{ color: theme.text, fontSize: 18, fontWeight: "700" }}
+            >
               Usuarios cercanos
             </Text>
             <Text style={{ color: "#64748B", marginTop: 8 }}>
@@ -984,7 +1102,7 @@ export default function HomeScreen() {
               <>
                 <Text
                   style={{
-                    color: "#F8FAFC",
+                    color: theme.text,
                     fontSize: 18,
                     fontWeight: "700",
                     marginTop: 16,
@@ -992,7 +1110,7 @@ export default function HomeScreen() {
                 >
                   {locationCity ?? "Ciudad desconocida"}
                 </Text>
-                <Text style={{ color: "#94A3B8", marginTop: 4 }}>
+                <Text style={{ color: theme.muted, marginTop: 4 }}>
                   {locationCountry ?? "País desconocido"}
                 </Text>
                 <Text style={{ color: "#00CFFF", marginTop: 16 }}>
@@ -1017,7 +1135,7 @@ export default function HomeScreen() {
                   .map((user) => (
                     <Text
                       key={user.id}
-                      style={{ color: "#CBD5E1", marginTop: 10 }}
+                      style={{ color: theme.muted, marginTop: 10 }}
                     >
                       {user.name} · {user.distanceKm.toFixed(1)} km
                     </Text>

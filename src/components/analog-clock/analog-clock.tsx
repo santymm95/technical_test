@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 
+import { useAppContext } from "@/context/app-context";
 import { styles } from "./analog-clock.styles";
 
 const CLOCK_SIZE = 220;
@@ -32,6 +33,7 @@ function ClockHand({ angle, length, width, color }: HandProps) {
 }
 
 export function AnalogClock({ compact = false }: { compact?: boolean }) {
+  const { isDarkMode } = useAppContext();
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -49,7 +51,15 @@ export function AnalogClock({ compact = false }: { compact?: boolean }) {
   return (
     <View style={styles.container}>
       <View style={compact ? styles.compactClock : undefined}>
-        <View style={styles.clock}>
+        <View
+          style={[
+            styles.clock,
+            {
+              backgroundColor: isDarkMode ? "#07111F" : "#FFFFFF",
+              borderColor: isDarkMode ? "#00D9FF" : "#087E8B",
+            },
+          ]}
+        >
           {Array.from({ length: 12 }, (_, index) => {
             const angle = index * 30;
             const radians = (angle * Math.PI) / 180;
@@ -61,21 +71,47 @@ export function AnalogClock({ compact = false }: { compact?: boolean }) {
             );
           })}
 
-          <Text style={styles.number}>{12}</Text>
-          <Text style={[styles.number, styles.numberThree]}>3</Text>
-          <Text style={[styles.number, styles.numberSix]}>6</Text>
-          <Text style={[styles.number, styles.numberNine]}>9</Text>
+          <Text style={[styles.number, !isDarkMode && { color: "#172033" }]}>
+            {12}
+          </Text>
+          <Text
+            style={[
+              styles.number,
+              styles.numberThree,
+              !isDarkMode && { color: "#172033" },
+            ]}
+          >
+            3
+          </Text>
+          <Text
+            style={[
+              styles.number,
+              styles.numberSix,
+              !isDarkMode && { color: "#172033" },
+            ]}
+          >
+            6
+          </Text>
+          <Text
+            style={[
+              styles.number,
+              styles.numberNine,
+              !isDarkMode && { color: "#172033" },
+            ]}
+          >
+            9
+          </Text>
 
           <View style={styles.hands}>
             <ClockHand
               angle={hourAngle}
-              color="#E6F7FF"
+              color={isDarkMode ? "#E6F7FF" : "#172033"}
               length={52}
               width={6}
             />
             <ClockHand
               angle={minuteAngle}
-              color="#B6F3FF"
+              color={isDarkMode ? "#B6F3FF" : "#087E8B"}
               length={76}
               width={4}
             />

@@ -1,15 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect } from "react";
 
 import { useAppContext } from "@/context/app-context";
 import { styles } from "./app-shell.styles";
@@ -33,7 +33,7 @@ const tabs: Array<{
 ];
 
 export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
-  const { userEmail, logOut } = useAppContext();
+  const { userEmail, logOut, isDarkMode, toggleTheme } = useAppContext();
   const contentProgress = useSharedValue(1);
 
   useEffect(() => {
@@ -64,26 +64,100 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
     });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        { backgroundColor: isDarkMode ? "#050816" : "#F4F7FB" },
+      ]}
+    >
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: isDarkMode ? "#050816" : "#F4F7FB" },
+        ]}
+      >
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: isDarkMode ? "#091222" : "#FFFFFF",
+              borderBottomColor: isDarkMode ? "#162B46" : "#D8E0EA",
+            },
+          ]}
+        >
           <View>
-            <Text style={styles.headerLabel}>Sesión activa</Text>
-            <Text style={styles.userName}>{userEmail ?? "Usuario"}</Text>
+            <Text
+              style={[styles.headerLabel, !isDarkMode && { color: "#087E8B" }]}
+            >
+              Sesión activa
+            </Text>
+            <Text
+              style={[styles.userName, !isDarkMode && { color: "#172033" }]}
+            >
+              {userEmail ?? "Usuario"}
+            </Text>
           </View>
 
-          <Pressable onPress={() => logOut()} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>Salir</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Pressable
+              accessibilityLabel={
+                isDarkMode ? "Activar modo claro" : "Activar modo oscuro"
+              }
+              onPress={toggleTheme}
+              style={[
+                styles.logoutButton,
+                !isDarkMode && {
+                  backgroundColor: "#E8F5F7",
+                  borderColor: "#B7DDE2",
+                },
+              ]}
+            >
+              <Ionicons
+                color={isDarkMode ? "#00D9FF" : "#087E8B"}
+                name={isDarkMode ? "sunny-outline" : "moon-outline"}
+                size={18}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => logOut()}
+              style={[
+                styles.logoutButton,
+                !isDarkMode && {
+                  backgroundColor: "#FFFFFF",
+                  borderColor: "#D8E0EA",
+                },
+              ]}
+            >
+              <Text
+                style={[styles.logoutText, !isDarkMode && { color: "#172033" }]}
+              >
+                Salir
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <GestureDetector gesture={swipeGesture}>
-          <Animated.View style={[styles.content, contentAnimatedStyle]}>
+          <Animated.View
+            style={[
+              styles.content,
+              { backgroundColor: isDarkMode ? "#050816" : "#F4F7FB" },
+              contentAnimatedStyle,
+            ]}
+          >
             {children}
           </Animated.View>
         </GestureDetector>
 
-        <View style={styles.tabBar}>
+        <View
+          style={[
+            styles.tabBar,
+            {
+              backgroundColor: isDarkMode ? "#091222" : "#FFFFFF",
+              borderTopColor: isDarkMode ? "#162B46" : "#D8E0EA",
+            },
+          ]}
+        >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
 
@@ -91,15 +165,31 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
               <Pressable
                 key={tab.key}
                 onPress={() => onTabChange(tab.key)}
-                style={[styles.tabButton, isActive && styles.tabButtonActive]}
+                style={[
+                  styles.tabButton,
+                  isActive && styles.tabButtonActive,
+                  isActive && !isDarkMode && { backgroundColor: "#BFE7EA" },
+                ]}
               >
                 <Ionicons
-                  color={isActive ? "#ffffff" : "#94a3b8"}
+                  color={
+                    isActive
+                      ? isDarkMode
+                        ? "#ffffff"
+                        : "#087E8B"
+                      : isDarkMode
+                        ? "#94a3b8"
+                        : "#64748B"
+                  }
                   name={tab.icon}
                   size={22}
                 />
                 <Text
-                  style={[styles.tabLabel, isActive && styles.tabLabelActive]}
+                  style={[
+                    styles.tabLabel,
+                    isActive && styles.tabLabelActive,
+                    !isDarkMode && { color: isActive ? "#087E8B" : "#64748B" },
+                  ]}
                 >
                   {tab.label}
                 </Text>

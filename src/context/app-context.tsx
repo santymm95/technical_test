@@ -2,17 +2,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
+    createContext,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+    type ReactNode,
 } from "react";
 
 const TOKEN_KEY = "appmovil.secure.token";
 const USER_EMAIL_KEY = "appmovil.secure.email";
 const USERS_CACHE_KEY = "appmovil.cached.users";
+const THEME_KEY = "appmovil.theme";
 
 export type UserRecord = {
   id: string;
@@ -48,6 +49,8 @@ type AppContextValue = {
   updateUserPicture: (email: string, pictureUri: string) => Promise<void>;
   logOut: () => Promise<void>;
   clearError: () => void;
+  isDarkMode: boolean;
+  toggleTheme: () => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -81,12 +84,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [userPage, setUserPage] = useState(1);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
     async function hydrateSession() {
       try {
         const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
         const savedEmail = await SecureStore.getItemAsync(USER_EMAIL_KEY);
+        const savedTheme = await AsyncStorage.getItem(THEME_KEY);
+
+        if (savedTheme === "light" || savedTheme === "dark") {
+          setIsDarkMode(savedTheme === "dark");
+        }
 
         if (savedToken) {
           setToken(savedToken);
@@ -311,6 +320,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setErrorMessage(null);
   }
 
+  async function toggleTheme() {
+    const nextIsDarkMode = !isDarkMode;
+    setIsDarkMode(nextIsDarkMode);
+    await AsyncStorage.setItem(THEME_KEY, nextIsDarkMode ? "dark" : "light");
+  }
+
   const value = useMemo<AppContextValue>(
     () => ({
       token,
@@ -328,6 +343,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateUserPicture,
       logOut,
       clearError: () => setErrorMessage(null),
+      isDarkMode,
+      toggleTheme,
     }),
     [
       token,
@@ -339,6 +356,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sessionReady,
       errorMessage,
       lastUpdated,
+      isDarkMode,
     ],
   );
 
