@@ -22,9 +22,6 @@ export { ThemedView, type ThemedViewProps } from "./themed-view";
 // Web Badge
 export { WebBadge } from "./web-badge";
 
-// Map View
-export { MapViewComponent, type MapLocation } from "./map-view";
-
 // UI Components
 export { Collapsible } from "./ui/collapsible";
 

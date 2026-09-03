@@ -13,7 +13,6 @@ import {
 
 import { AnalogClock } from "@/components/analog-clock/analog-clock";
 import { AppShell } from "@/components/app-shell/app-shell";
-import { MapViewComponent } from "@/components/map-view/map-view";
 import { useAppContext } from "@/context/app-context";
 import UsersScreen from "@/screens/users-screen";
 
@@ -85,7 +84,6 @@ export default function HomeScreen() {
   const [agendaEvents, setAgendaEvents] = useState<AgendaEvents>({});
   const [agendaTitle, setAgendaTitle] = useState("");
   const [isAgendaModalVisible, setIsAgendaModalVisible] = useState(false);
-  const [isMapModalVisible, setIsMapModalVisible] = useState(false);
   const [widgetPositions, setWidgetPositions] = useState<WidgetPosition[]>([
     { id: "weather", x: 0, y: 0, order: 0 },
     { id: "calendar", x: 0, y: 0, order: 1 },
@@ -405,16 +403,6 @@ export default function HomeScreen() {
     } finally {
       setIsLoadingLocation(false);
     }
-  }
-
-  async function handleOpenMap() {
-    const locationReady =
-      Boolean(deviceLocation) || (await handleGetLocation());
-    if (!locationReady) {
-      setIsMapModalVisible(false);
-      return;
-    }
-    setIsMapModalVisible(true);
   }
 
   const nearestUsers = deviceLocation
@@ -811,7 +799,7 @@ export default function HomeScreen() {
                 ))}
                 {!deviceLocation ? (
                   <Text style={{ color: "#64748B" }}>
-                    Usa “Abrir mapa” para calcular la cercanía.
+                    Usa tu ubicación para calcular la cercanía.
                   </Text>
                 ) : null}
               </View>
@@ -964,23 +952,6 @@ export default function HomeScreen() {
                 {isLoadingLocation ? "Buscando..." : "Usar mi ubicación"}
               </Text>
             </Pressable>
-            <Pressable
-              onPress={handleOpenMap}
-              style={{
-                alignItems: "center",
-                backgroundColor: "#081426",
-                borderColor: "#00D9FF",
-                borderRadius: 13,
-                borderWidth: 1,
-                marginTop: 10,
-                padding: 12,
-              }}
-            >
-              <Text style={{ color: "#00D9FF", fontWeight: "800" }}>
-                Abrir mapa
-              </Text>
-            </Pressable>
-
             {deviceLocation ? (
               <>
                 <Text style={{ color: "#00CFFF", marginTop: 16 }}>
@@ -1013,88 +984,6 @@ export default function HomeScreen() {
               </>
             ) : null}
           </View>
-          <Modal
-            animationType="slide"
-            transparent
-            visible={isMapModalVisible}
-            onRequestClose={() => setIsMapModalVisible(false)}
-          >
-            <View
-              style={{
-                backgroundColor: "#050816",
-                flex: 1,
-                padding: 20,
-                paddingTop: 48,
-              }}
-            >
-              <View
-                style={{
-                  alignItems: "center",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  marginBottom: 16,
-                }}
-              >
-                <Text
-                  style={{ color: "#F8FAFC", fontSize: 22, fontWeight: "800" }}
-                >
-                  Mapa
-                </Text>
-                <Pressable
-                  onPress={() => setIsMapModalVisible(false)}
-                  style={{
-                    borderColor: "#1A304A",
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                  }}
-                >
-                  <Text style={{ color: "#CBD5E1", fontWeight: "700" }}>
-                    Cerrar
-                  </Text>
-                </Pressable>
-              </View>
-              {deviceLocation ? (
-                <MapViewComponent
-                  locations={users
-                    .filter(
-                      (user) => user.latitude != null && user.longitude != null,
-                    )
-                    .map((user) => ({
-                      latitude: user.latitude as number,
-                      longitude: user.longitude as number,
-                      title: user.name,
-                    }))}
-                  style={{
-                    backgroundColor: "#07111F",
-                    borderColor: "#162B46",
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    flex: 1,
-                    overflow: "hidden",
-                  }}
-                  userLocation={{
-                    latitude: deviceLocation.latitude,
-                    longitude: deviceLocation.longitude,
-                    title: "Tu ubicación",
-                  }}
-                />
-              ) : (
-                <View
-                  style={{
-                    alignItems: "center",
-                    flex: 1,
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ color: "#FF7187", textAlign: "center" }}>
-                    No se pudo obtener tu ubicación para abrir el mapa.
-                  </Text>
-                </View>
-              )}
-            </View>
-          </Modal>
         </View>
       ) : null}
     </AppShell>
