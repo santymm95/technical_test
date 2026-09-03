@@ -1,21 +1,24 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-    Alert,
-    GestureResponderEvent,
-    PanResponder,
-    Pressable,
-    ScrollView,
-    Text,
-    View
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
+import { AnalogClock } from "@/components/analog-clock/analog-clock";
 import { AppShell } from "@/components/app-shell/app-shell";
+import { MapViewComponent } from "@/components/map-view/map-view";
 import { useAppContext } from "@/context/app-context";
 import UsersScreen from "@/screens/users-screen";
 
 const WIDGET_STORAGE_KEY = "appmovil.widgets.positions";
+const AGENDA_STORAGE_KEY = "appmovil.agenda.events";
 
 type WidgetPosition = {
   id: string;
@@ -33,6 +36,20 @@ type WeatherData = {
   city: string;
   country: string;
 };
+
+type DeviceLocation = {
+  latitude: number;
+  longitude: number;
+};
+
+type AgendaEvents = Record<string, string[]>;
+
+function getDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const toRad = (value: number) => (value * Math.PI) / 180;
@@ -57,116 +74,56 @@ export default function HomeScreen() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [deviceLocation, setDeviceLocation] = useState<DeviceLocation | null>(
+    null,
+  );
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [locationMessage, setLocationMessage] = useState(
+    "Pulsa el botón para buscar usuarios cercanos.",
+  );
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [agendaEvents, setAgendaEvents] = useState<AgendaEvents>({});
+  const [agendaTitle, setAgendaTitle] = useState("");
+  const [isAgendaModalVisible, setIsAgendaModalVisible] = useState(false);
+  const [isMapModalVisible, setIsMapModalVisible] = useState(false);
   const [widgetPositions, setWidgetPositions] = useState<WidgetPosition[]>([
     { id: "weather", x: 0, y: 0, order: 0 },
     { id: "calendar", x: 0, y: 0, order: 1 },
   ]);
-  const [draggingWidget, setDraggingWidget] = useState<string | null>(null);
-  const [draggedOverWidget, setDraggedOverWidget] = useState<string | null>(
-    null,
-  );
-
-  // Weather pan responder
-  const weatherPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        setDraggingWidget("weather");
-      },
-      onPanResponderMove: (evt: GestureResponderEvent, gestureState) => {
-        const { moveY } = gestureState;
-        // Check if widget is over another widget for swap
-        if (moveY > 400 && moveY < 600) {
-          setDraggedOverWidget("calendar");
-        } else {
-          setDraggedOverWidget(null);
-        }
-      },
-      onPanResponderRelease: () => {
-        if (draggingWidget && draggedOverWidget) {
-          // Swap widgets order
-          setWidgetPositions((current) => {
-            const draggingIdx = current.findIndex(
-              (w) => w.id === draggingWidget,
-            );
-            const draggedIdx = current.findIndex(
-              (w) => w.id === draggedOverWidget,
-            );
-            if (draggingIdx !== -1 && draggedIdx !== -1) {
-              const newPositions = [...current];
-              [
-                newPositions[draggingIdx].order,
-                newPositions[draggedIdx].order,
-              ] = [
-                newPositions[draggedIdx].order,
-                newPositions[draggingIdx].order,
-              ];
-              return newPositions;
-            }
-            return current;
-          });
-          persistWidgetPositions();
-        }
-        setDraggingWidget(null);
-        setDraggedOverWidget(null);
-      },
-    }),
-  ).current;
-
-  // Calendar pan responder
-  const calendarPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        setDraggingWidget("calendar");
-      },
-      onPanResponderMove: (evt: GestureResponderEvent, gestureState) => {
-        const { moveY } = gestureState;
-        // Check if widget is over another widget for swap
-        if (moveY < 200) {
-          setDraggedOverWidget("weather");
-        } else {
-          setDraggedOverWidget(null);
-        }
-      },
-      onPanResponderRelease: () => {
-        if (draggingWidget && draggedOverWidget) {
-          // Swap widgets order
-          setWidgetPositions((current) => {
-            const draggingIdx = current.findIndex(
-              (w) => w.id === draggingWidget,
-            );
-            const draggedIdx = current.findIndex(
-              (w) => w.id === draggedOverWidget,
-            );
-            if (draggingIdx !== -1 && draggedIdx !== -1) {
-              const newPositions = [...current];
-              [
-                newPositions[draggingIdx].order,
-                newPositions[draggedIdx].order,
-              ] = [
-                newPositions[draggedIdx].order,
-                newPositions[draggingIdx].order,
-              ];
-              return newPositions;
-            }
-            return current;
-          });
-          persistWidgetPositions();
-        }
-        setDraggingWidget(null);
-        setDraggedOverWidget(null);
-      },
-    }),
-  ).current;
-
   useEffect(() => {
     loadWidgetPositions();
-    handleGetWeather();
+    loadAgendaEvents();
   }, []);
+
+  async function loadAgendaEvents() {
+    try {
+      const stored = await AsyncStorage.getItem(AGENDA_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as AgendaEvents;
+        setAgendaEvents(parsed ?? {});
+      }
+    } catch {
+      setAgendaEvents({});
+    }
+  }
+
+  async function saveAgendaEvent() {
+    const title = agendaTitle.trim();
+    if (!title) {
+      return;
+    }
+
+    const dateKey = getDateKey(selectedDate);
+    const nextEvents = {
+      ...agendaEvents,
+      [dateKey]: [...(agendaEvents[dateKey] ?? []), title],
+    };
+
+    setAgendaEvents(nextEvents);
+    setAgendaTitle("");
+    await AsyncStorage.setItem(AGENDA_STORAGE_KEY, JSON.stringify(nextEvents));
+    setIsAgendaModalVisible(false);
+  }
 
   async function loadWidgetPositions() {
     try {
@@ -207,6 +164,14 @@ export default function HomeScreen() {
     );
   }
 
+  function isSelectedDay(day: number): boolean {
+    return (
+      day === selectedDate.getDate() &&
+      selectedDate.getMonth() === selectedDate.getMonth() &&
+      selectedDate.getFullYear() === selectedDate.getFullYear()
+    );
+  }
+
   function renderCalendarDays() {
     const daysInMonth = getDaysInMonth(selectedDate);
     const firstDay = getFirstDayOfMonth(selectedDate);
@@ -224,30 +189,64 @@ export default function HomeScreen() {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const today = isToday(day);
+      const selected = isSelectedDay(day);
+      const dayEvents =
+        agendaEvents[
+          getDateKey(
+            new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day),
+          )
+        ];
       days.push(
-        <View
+        <Pressable
           key={day}
+          onPress={() =>
+            (() => {
+              setSelectedDate(
+                new Date(
+                  selectedDate.getFullYear(),
+                  selectedDate.getMonth(),
+                  day,
+                ),
+              );
+              setAgendaTitle("");
+              setIsAgendaModalVisible(true);
+            })()
+          }
           style={{
             width: CELL_SIZE,
             height: CELL_SIZE,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: today ? "#2563eb" : "transparent",
-            borderRadius: today ? 8 : 0,
+            backgroundColor: selected ? "#00D9FF" : "transparent",
+            borderColor: today && !selected ? "#00D9FF" : "transparent",
+            borderRadius: 8,
+            borderWidth: today && !selected ? 1 : 0,
             marginBottom: 4,
             marginRight: 4,
           }}
         >
           <Text
             style={{
-              color: today ? "#fff" : "#cbd5e1",
+              color: selected ? "#001018" : "#CBD5E1",
               fontSize: 14,
-              fontWeight: today ? "700" : "500",
+              fontWeight: selected || today ? "700" : "500",
             }}
           >
             {day}
           </Text>
-        </View>,
+          {dayEvents?.length ? (
+            <View
+              style={{
+                backgroundColor: selected ? "#001018" : "#00D9FF",
+                borderRadius: 3,
+                bottom: 4,
+                height: 5,
+                position: "absolute",
+                width: 5,
+              }}
+            />
+          ) : null}
+        </Pressable>,
       );
     }
 
@@ -312,6 +311,7 @@ export default function HomeScreen() {
       });
 
       const { latitude, longitude } = currentLocation.coords;
+      setDeviceLocation({ latitude, longitude });
 
       const geoAddress = await Location.reverseGeocodeAsync({
         latitude,
@@ -354,13 +354,95 @@ export default function HomeScreen() {
     }
   }
 
+  async function handleGetLocation(): Promise<boolean> {
+    try {
+      setIsLoadingLocation(true);
+      setLocationMessage("Obteniendo ubicación actual...");
+
+      if (!(await Location.hasServicesEnabledAsync())) {
+        setDeviceLocation(null);
+        setLocationMessage(
+          "La ubicación del dispositivo está desactivada. Actívala en Ajustes y vuelve a intentarlo.",
+        );
+        Alert.alert(
+          "Activa la ubicación",
+          "Activa manualmente la ubicación del dispositivo para poder abrir el mapa.",
+        );
+        return false;
+      }
+
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        setDeviceLocation(null);
+        setLocationMessage(
+          "Permiso de ubicación denegado. Puedes habilitarlo en Ajustes para ordenar los usuarios por cercanía.",
+        );
+        Alert.alert(
+          "Permiso de ubicación denegado",
+          "Permite el acceso a la ubicación cuando quieras usar el mapa.",
+        );
+        return false;
+      }
+
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      setDeviceLocation({
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
+      });
+      setLocationMessage(
+        "Ubicación actualizada. Usuarios ordenados por cercanía.",
+      );
+      return true;
+    } catch {
+      setDeviceLocation(null);
+      setLocationMessage(
+        "No se pudo obtener la ubicación. Comprueba la señal del dispositivo y vuelve a intentarlo.",
+      );
+      return false;
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  }
+
+  async function handleOpenMap() {
+    const locationReady =
+      Boolean(deviceLocation) || (await handleGetLocation());
+    if (!locationReady) {
+      setIsMapModalVisible(false);
+      return;
+    }
+    setIsMapModalVisible(true);
+  }
+
+  const nearestUsers = deviceLocation
+    ? users
+        .filter((user) => user.latitude != null && user.longitude != null)
+        .map((user) => ({
+          ...user,
+          distanceKm: haversineKm(
+            deviceLocation.latitude,
+            deviceLocation.longitude,
+            user.latitude as number,
+            user.longitude as number,
+          ),
+        }))
+        .sort(
+          (firstUser, secondUser) =>
+            firstUser.distanceKm - secondUser.distanceKm,
+        )
+        .slice(0, 3)
+    : [];
+
   return (
     <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === "inicio" ? (
-        <View style={{ flex: 1, backgroundColor: "#0b1020", padding: 20 }}>
+        <View style={{ flex: 1, backgroundColor: "#050816", padding: 20 }}>
           <Text
             style={{
-              color: "#f8fafc",
+              color: "#F8FAFC",
               fontSize: 28,
               fontWeight: "800",
               marginBottom: 20,
@@ -369,32 +451,70 @@ export default function HomeScreen() {
             Dashboard
           </Text>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={{
+                backgroundColor: "#091222",
+                borderColor: "#162B46",
+                borderRadius: 16,
+                borderWidth: 2,
+                marginRight: "2%",
+                marginBottom: 16,
+                padding: 16,
+                width: "48%",
+              }}
+            >
+              <View
+                style={{
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#F8FAFC",
+                    fontSize: 18,
+                    fontWeight: "700",
+                  }}
+                >
+                  Hora actual
+                </Text>
+                <Text style={{ color: "#64748B", fontSize: 12 }}>
+                  TIEMPO LOCAL
+                </Text>
+              </View>
+              <AnalogClock compact />
+            </View>
+
             {/* Widgets sorted by order */}
             {[...widgetPositions]
-              .sort((a, b) => a.order - b.order)
+              .sort((a, b) => {
+                if (a.id === "calendar") {
+                  return 1;
+                }
+                if (b.id === "calendar") {
+                  return -1;
+                }
+                return a.order - b.order;
+              })
               .map((widget) => {
                 if (widget.id === "weather") {
                   return (
                     <View
                       key="weather"
-                      {...weatherPanResponder.panHandlers}
                       style={{
-                        backgroundColor:
-                          draggingWidget === "weather"
-                            ? "#1a2332"
-                            : draggedOverWidget === "weather"
-                              ? "#0d1620"
-                              : "#111827",
-                        borderColor:
-                          draggedOverWidget === "weather"
-                            ? "#2563eb"
-                            : "#1f2937",
+                        backgroundColor: "#091222",
+                        borderColor: "#162B46",
                         borderRadius: 16,
                         borderWidth: 2,
                         padding: 16,
                         marginBottom: 16,
-                        opacity: draggingWidget === "weather" ? 0.7 : 1,
+                        width: "48%",
                       }}
                     >
                       <View
@@ -407,15 +527,12 @@ export default function HomeScreen() {
                       >
                         <Text
                           style={{
-                            color: "#f8fafc",
+                            color: "#F8FAFC",
                             fontSize: 18,
                             fontWeight: "700",
                           }}
                         >
                           Clima
-                        </Text>
-                        <Text style={{ color: "#94a3b8", fontSize: 12 }}>
-                          ⋮⋮ Arrastra
                         </Text>
                       </View>
 
@@ -425,8 +542,8 @@ export default function HomeScreen() {
                         style={{
                           alignItems: "center",
                           backgroundColor: isLoadingWeather
-                            ? "#374151"
-                            : "#2563eb",
+                            ? "#1A304A"
+                            : "#00D9FF",
                           borderRadius: 8,
                           marginBottom: 12,
                           opacity: isLoadingWeather ? 0.7 : 1,
@@ -435,7 +552,7 @@ export default function HomeScreen() {
                       >
                         <Text
                           style={{
-                            color: "#fff",
+                            color: "#001018",
                             fontSize: 14,
                             fontWeight: "600",
                           }}
@@ -445,7 +562,7 @@ export default function HomeScreen() {
                       </Pressable>
 
                       {weatherError ? (
-                        <Text style={{ color: "#fca5a5", fontSize: 14 }}>
+                        <Text style={{ color: "#FF7187", fontSize: 14 }}>
                           {weatherError}
                         </Text>
                       ) : null}
@@ -454,7 +571,7 @@ export default function HomeScreen() {
                         <>
                           <Text
                             style={{
-                              color: "#cbd5e1",
+                              color: "#CBD5E1",
                               fontSize: 14,
                               marginBottom: 8,
                             }}
@@ -463,7 +580,7 @@ export default function HomeScreen() {
                           </Text>
                           <Text
                             style={{
-                              color: "#93c5fd",
+                              color: "#00CFFF",
                               fontSize: 36,
                               fontWeight: "700",
                               marginBottom: 8,
@@ -473,7 +590,7 @@ export default function HomeScreen() {
                           </Text>
                           <Text
                             style={{
-                              color: "#e2e8f0",
+                              color: "#E6F7FF",
                               fontSize: 14,
                               marginBottom: 12,
                             }}
@@ -486,10 +603,10 @@ export default function HomeScreen() {
                               justifyContent: "space-between",
                             }}
                           >
-                            <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                            <Text style={{ color: "#64748B", fontSize: 12 }}>
                               💧 {weather.humidity}%
                             </Text>
-                            <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                            <Text style={{ color: "#64748B", fontSize: 12 }}>
                               💨 {weather.windSpeed} km/h
                             </Text>
                           </View>
@@ -501,23 +618,14 @@ export default function HomeScreen() {
                   return (
                     <View
                       key="calendar"
-                      {...calendarPanResponder.panHandlers}
                       style={{
-                        backgroundColor:
-                          draggingWidget === "calendar"
-                            ? "#1a2332"
-                            : draggedOverWidget === "calendar"
-                              ? "#0d1620"
-                              : "#111827",
-                        borderColor:
-                          draggedOverWidget === "calendar"
-                            ? "#2563eb"
-                            : "#1f2937",
+                        backgroundColor: "#091222",
+                        borderColor: "#162B46",
                         borderRadius: 16,
                         borderWidth: 2,
                         padding: 16,
                         marginBottom: 16,
-                        opacity: draggingWidget === "calendar" ? 0.7 : 1,
+                        width: "100%",
                       }}
                     >
                       <View
@@ -530,15 +638,12 @@ export default function HomeScreen() {
                       >
                         <Text
                           style={{
-                            color: "#f8fafc",
+                            color: "#F8FAFC",
                             fontSize: 18,
                             fontWeight: "700",
                           }}
                         >
                           Calendario
-                        </Text>
-                        <Text style={{ color: "#94a3b8", fontSize: 12 }}>
-                          ⋮⋮ Arrastra
                         </Text>
                       </View>
 
@@ -563,7 +668,7 @@ export default function HomeScreen() {
                         >
                           <Text
                             style={{
-                              color: "#2563eb",
+                              color: "#00D9FF",
                               fontWeight: "600",
                               fontSize: 18,
                             }}
@@ -573,7 +678,7 @@ export default function HomeScreen() {
                         </Pressable>
                         <Text
                           style={{
-                            color: "#cbd5e1",
+                            color: "#CBD5E1",
                             fontSize: 14,
                             fontWeight: "600",
                           }}
@@ -596,7 +701,7 @@ export default function HomeScreen() {
                         >
                           <Text
                             style={{
-                              color: "#2563eb",
+                              color: "#00D9FF",
                               fontWeight: "600",
                               fontSize: 18,
                             }}
@@ -610,7 +715,7 @@ export default function HomeScreen() {
                         style={{
                           flexDirection: "row",
                           marginBottom: 12,
-                          borderBottomColor: "#1f2937",
+                          borderBottomColor: "#162B46",
                           borderBottomWidth: 1,
                           paddingBottom: 8,
                           justifyContent: "space-around",
@@ -621,7 +726,7 @@ export default function HomeScreen() {
                             <Text
                               key={day}
                               style={{
-                                color: "#94a3b8",
+                                color: "#64748B",
                                 fontSize: 11,
                                 fontWeight: "600",
                                 width: 50,
@@ -643,12 +748,173 @@ export default function HomeScreen() {
                       >
                         {renderCalendarDays()}
                       </View>
+
+                      {(agendaEvents[getDateKey(selectedDate)] ?? []).map(
+                        (event, index) => (
+                          <Text
+                            key={`${event}-${index}`}
+                            style={{
+                              color: "#CBD5E1",
+                              marginTop: 10,
+                            }}
+                          >
+                            • {event}
+                          </Text>
+                        ),
+                      )}
                     </View>
                   );
                 }
                 return null;
               })}
+
+            <View
+              style={{
+                backgroundColor: "#091222",
+                borderColor: "#162B46",
+                borderRadius: 16,
+                borderWidth: 2,
+                marginBottom: 16,
+                padding: 16,
+                width: "100%",
+              }}
+            >
+              <Text
+                style={{
+                  color: "#F8FAFC",
+                  fontSize: 18,
+                  fontWeight: "700",
+                  marginBottom: 12,
+                }}
+              >
+                Primeros usuarios
+              </Text>
+              <View style={{ flexDirection: "row" }}>
+                {nearestUsers.map((user, index) => (
+                  <View
+                    key={user.id}
+                    style={{
+                      borderRightColor: index < 2 ? "#162B46" : "transparent",
+                      borderRightWidth: index < 2 ? 1 : 0,
+                      marginRight: index < 2 ? "2%" : 0,
+                      paddingVertical: 10,
+                      width: "32%",
+                    }}
+                  >
+                    <Text style={{ color: "#E6F7FF", fontWeight: "700" }}>
+                      {user.name}
+                    </Text>
+                    <Text style={{ color: "#64748B", marginTop: 3 }}>
+                      Km: {user.distanceKm.toFixed(1)}
+                    </Text>
+                  </View>
+                ))}
+                {!deviceLocation ? (
+                  <Text style={{ color: "#64748B" }}>
+                    Usa “Abrir mapa” para calcular la cercanía.
+                  </Text>
+                ) : null}
+              </View>
+            </View>
           </ScrollView>
+          <Modal
+            animationType="fade"
+            transparent
+            visible={isAgendaModalVisible}
+            onRequestClose={() => setIsAgendaModalVisible(false)}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                backgroundColor: "rgba(5, 8, 22, 0.78)",
+                flex: 1,
+                justifyContent: "center",
+                padding: 20,
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: "#091222",
+                  borderColor: "#00D9FF",
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  padding: 20,
+                  width: "100%",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#F8FAFC",
+                    fontSize: 20,
+                    fontWeight: "800",
+                  }}
+                >
+                  Crear evento
+                </Text>
+                <Text style={{ color: "#00CFFF", marginTop: 6 }}>
+                  {selectedDate.toLocaleDateString("es-ES", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </Text>
+                <TextInput
+                  autoFocus
+                  onChangeText={setAgendaTitle}
+                  onSubmitEditing={saveAgendaEvent}
+                  placeholder="Nombre del evento"
+                  placeholderTextColor="#64748B"
+                  style={{
+                    backgroundColor: "#07111F",
+                    borderColor: "#1A304A",
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    color: "#E6F7FF",
+                    marginTop: 18,
+                    paddingHorizontal: 12,
+                    paddingVertical: 12,
+                  }}
+                  value={agendaTitle}
+                />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "flex-end",
+                    marginTop: 16,
+                  }}
+                >
+                  <Pressable
+                    onPress={() => setIsAgendaModalVisible(false)}
+                    style={{
+                      borderColor: "#1A304A",
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      marginRight: 10,
+                      paddingHorizontal: 14,
+                      paddingVertical: 11,
+                    }}
+                  >
+                    <Text style={{ color: "#CBD5E1", fontWeight: "700" }}>
+                      Cancelar
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={saveAgendaEvent}
+                    style={{
+                      backgroundColor: "#00D9FF",
+                      borderRadius: 10,
+                      paddingHorizontal: 16,
+                      paddingVertical: 11,
+                    }}
+                  >
+                    <Text style={{ color: "#001018", fontWeight: "800" }}>
+                      Guardar
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </View>
       ) : null}
 
@@ -660,15 +926,175 @@ export default function HomeScreen() {
             flex: 1,
             justifyContent: "center",
             alignItems: "center",
-            backgroundColor: "#0b1020",
+            backgroundColor: "#050816",
           }}
         >
-          <Text style={{ color: "#f8fafc", fontSize: 24, fontWeight: "700" }}>
+          <Text style={{ color: "#F8FAFC", fontSize: 24, fontWeight: "700" }}>
             Funciones
           </Text>
-          <Text style={{ color: "#94a3b8", marginTop: 8 }}>
-            Más funcionalidades próximamente
-          </Text>
+          <View
+            style={{
+              backgroundColor: "#091222",
+              borderColor: "#162B46",
+              borderRadius: 22,
+              borderWidth: 1,
+              margin: 20,
+              padding: 20,
+              width: "90%",
+            }}
+          >
+            <Text style={{ color: "#F8FAFC", fontSize: 18, fontWeight: "700" }}>
+              Usuarios cercanos
+            </Text>
+            <Text style={{ color: "#64748B", marginTop: 8 }}>
+              {locationMessage}
+            </Text>
+            <Pressable
+              disabled={isLoadingLocation}
+              onPress={handleGetLocation}
+              style={{
+                alignItems: "center",
+                backgroundColor: isLoadingLocation ? "#1A304A" : "#00D9FF",
+                borderRadius: 13,
+                marginTop: 16,
+                padding: 12,
+              }}
+            >
+              <Text style={{ color: "#001018", fontWeight: "800" }}>
+                {isLoadingLocation ? "Buscando..." : "Usar mi ubicación"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleOpenMap}
+              style={{
+                alignItems: "center",
+                backgroundColor: "#081426",
+                borderColor: "#00D9FF",
+                borderRadius: 13,
+                borderWidth: 1,
+                marginTop: 10,
+                padding: 12,
+              }}
+            >
+              <Text style={{ color: "#00D9FF", fontWeight: "800" }}>
+                Abrir mapa
+              </Text>
+            </Pressable>
+
+            {deviceLocation ? (
+              <>
+                <Text style={{ color: "#00CFFF", marginTop: 16 }}>
+                  {deviceLocation.latitude.toFixed(4)},{" "}
+                  {deviceLocation.longitude.toFixed(4)}
+                </Text>
+                {users
+                  .filter(
+                    (user) => user.latitude != null && user.longitude != null,
+                  )
+                  .map((user) => ({
+                    ...user,
+                    distanceKm: haversineKm(
+                      deviceLocation.latitude,
+                      deviceLocation.longitude,
+                      user.latitude as number,
+                      user.longitude as number,
+                    ),
+                  }))
+                  .sort((a, b) => a.distanceKm - b.distanceKm)
+                  .slice(0, 3)
+                  .map((user) => (
+                    <Text
+                      key={user.id}
+                      style={{ color: "#CBD5E1", marginTop: 10 }}
+                    >
+                      {user.name} · {user.distanceKm.toFixed(1)} km
+                    </Text>
+                  ))}
+              </>
+            ) : null}
+          </View>
+          <Modal
+            animationType="slide"
+            transparent
+            visible={isMapModalVisible}
+            onRequestClose={() => setIsMapModalVisible(false)}
+          >
+            <View
+              style={{
+                backgroundColor: "#050816",
+                flex: 1,
+                padding: 20,
+                paddingTop: 48,
+              }}
+            >
+              <View
+                style={{
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 16,
+                }}
+              >
+                <Text
+                  style={{ color: "#F8FAFC", fontSize: 22, fontWeight: "800" }}
+                >
+                  Mapa
+                </Text>
+                <Pressable
+                  onPress={() => setIsMapModalVisible(false)}
+                  style={{
+                    borderColor: "#1A304A",
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}
+                >
+                  <Text style={{ color: "#CBD5E1", fontWeight: "700" }}>
+                    Cerrar
+                  </Text>
+                </Pressable>
+              </View>
+              {deviceLocation ? (
+                <MapViewComponent
+                  locations={users
+                    .filter(
+                      (user) => user.latitude != null && user.longitude != null,
+                    )
+                    .map((user) => ({
+                      latitude: user.latitude as number,
+                      longitude: user.longitude as number,
+                      title: user.name,
+                    }))}
+                  style={{
+                    backgroundColor: "#07111F",
+                    borderColor: "#162B46",
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    flex: 1,
+                    overflow: "hidden",
+                  }}
+                  userLocation={{
+                    latitude: deviceLocation.latitude,
+                    longitude: deviceLocation.longitude,
+                    title: "Tu ubicación",
+                  }}
+                />
+              ) : (
+                <View
+                  style={{
+                    alignItems: "center",
+                    flex: 1,
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: "#FF7187", textAlign: "center" }}>
+                    No se pudo obtener tu ubicación para abrir el mapa.
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Modal>
         </View>
       ) : null}
     </AppShell>

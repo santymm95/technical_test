@@ -1,12 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    Pressable,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -14,13 +14,8 @@ import { useAppContext } from "@/context/app-context";
 import { styles } from "./login-screen.styles";
 
 export default function LoginScreen() {
-  const {
-    loginWithEmailPassword,
-    simulateLogin,
-    loginLoading,
-    errorMessage,
-    clearError,
-  } = useAppContext();
+  const { loginWithEmailPassword, loginLoading, errorMessage, clearError } =
+    useAppContext();
 
   const [email, setEmail] = useState("eve.holt@reqres.in");
   const [password, setPassword] = useState("cityslicka");
@@ -37,21 +32,6 @@ export default function LoginScreen() {
         error instanceof Error
           ? error.message
           : "No fue posible iniciar sesión.",
-      );
-    }
-  }
-
-  async function handleSimulatedLogin() {
-    clearError();
-
-    try {
-      await simulateLogin(email);
-    } catch (error) {
-      Alert.alert(
-        "ERROR",
-        error instanceof Error
-          ? error.message
-          : "No fue posible simular el inicio de sesión.",
       );
     }
   }
@@ -73,8 +53,6 @@ export default function LoginScreen() {
           <Text style={styles.brand}>APP MÓVIL</Text>
 
           <Text style={styles.title}>Bienvenido</Text>
-
-          <Text style={styles.subtitle}>Accede al sistema de forma segura</Text>
         </View>
 
         <View style={styles.card}>
@@ -180,35 +158,6 @@ export default function LoginScreen() {
             )}
           </Pressable>
 
-          <Pressable
-            disabled={loginLoading}
-            onPress={handleSimulatedLogin}
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-              loginLoading && styles.buttonDisabled,
-              { backgroundColor: "#1E3A8A", opacity: 0.8 },
-            ]}
-          >
-            {loginLoading ? (
-              <>
-                <ActivityIndicator color="#FFFFFF" size="small" />
-
-                <Text style={{ ...styles.buttonText, color: "#FFFFFF" }}>
-                  SIMULANDO...
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={{ ...styles.buttonText, color: "#FFFFFF" }}>
-                  INICIO SIMULADO
-                </Text>
-
-                <Ionicons name="flash" size={20} color="#FFFFFF" />
-              </>
-            )}
-          </Pressable>
-
           <View style={styles.securityContainer}>
             <View style={styles.statusDot} />
 
@@ -223,7 +172,7 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>SYSTEM ONLINE</Text>
+          <Text style={styles.footerText}>Prueba Móvil</Text>
 
           <View style={styles.footerLine} />
 

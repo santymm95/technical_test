@@ -3,16 +3,16 @@ import { StyleSheet } from "react-native";
 export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0b1020",
+    backgroundColor: "#050816",
   },
   container: {
     flex: 1,
-    backgroundColor: "#0b1020",
+    backgroundColor: "#050816",
   },
   header: {
     alignItems: "center",
-    backgroundColor: "#111827",
-    borderBottomColor: "#1f2937",
+    backgroundColor: "#091222",
+    borderBottomColor: "#162B46",
     borderBottomWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -20,20 +20,22 @@ export const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   headerLabel: {
-    color: "#93c5fd",
+    color: "#00CFFF",
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
   },
   userName: {
-    color: "#f8fafc",
+    color: "#F8FAFC",
     fontSize: 18,
     fontWeight: "700",
     marginTop: 4,
   },
   logoutButton: {
-    backgroundColor: "#1f2937",
+    backgroundColor: "#081426",
+    borderColor: "#1A304A",
+    borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -44,12 +46,12 @@ export const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    backgroundColor: "#0b1020",
+    backgroundColor: "#050816",
   },
   tabBar: {
     alignItems: "center",
-    backgroundColor: "#111827",
-    borderTopColor: "#1f2937",
+    backgroundColor: "#091222",
+    borderTopColor: "#162B46",
     borderTopWidth: 1,
     flexDirection: "row",
     justifyContent: "space-around",
@@ -63,17 +65,17 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   tabButtonActive: {
-    backgroundColor: "#1d4ed8",
-    borderRadius: 14,
+    backgroundColor: "#00D9FF",
+    borderRadius: 13,
     marginHorizontal: 8,
   },
   tabLabel: {
-    color: "#94a3b8",
+    color: "#64748B",
     fontSize: 11,
     fontWeight: "700",
     marginTop: 4,
   },
   tabLabelActive: {
-    color: "#ffffff",
+    color: "#001018",
   },
 });

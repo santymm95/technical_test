@@ -3,16 +3,16 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  RefreshControl,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Pressable,
+    RefreshControl,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 
 import { useAppContext, type UserRecord } from "@/context/app-context";
@@ -238,7 +238,10 @@ export default function UsersScreen() {
 
     return (
       <Pressable
-        onPress={() => setSelectedUser(item)}
+        onPress={() => {
+          setPendingPhotoUri(null);
+          setSelectedUser(item);
+        }}
         style={[styles.card, locked && styles.cardRestricted]}
       >
         {avatarUri ? (
@@ -329,7 +332,10 @@ export default function UsersScreen() {
         animationType="slide"
         transparent
         visible={Boolean(selectedUser)}
-        onRequestClose={() => setSelectedUser(null)}
+        onRequestClose={() => {
+          setPendingPhotoUri(null);
+          setSelectedUser(null);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View
@@ -386,17 +392,19 @@ export default function UsersScreen() {
 
                 <Pressable
                   onPress={() => handlePhotoChange("library")}
-                  style={styles.secondaryAction}
+                  style={styles.primaryAction}
                 >
                   <Text style={styles.actionText}>Elegir de la galería</Text>
                 </Pressable>
 
-                <Pressable
-                  onPress={applyPhotoChanges}
-                  style={styles.primaryAction}
-                >
-                  <Text style={styles.actionText}>Aplicar cambios</Text>
-                </Pressable>
+                {pendingPhotoUri ? (
+                  <Pressable
+                    onPress={applyPhotoChanges}
+                    style={styles.primaryAction}
+                  >
+                    <Text style={styles.actionText}>Aplicar cambios</Text>
+                  </Pressable>
+                ) : null}
 
                 <Pressable
                   onPress={() => {
