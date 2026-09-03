@@ -76,6 +76,8 @@ export default function HomeScreen() {
   const [deviceLocation, setDeviceLocation] = useState<DeviceLocation | null>(
     null,
   );
+  const [locationCity, setLocationCity] = useState<string | null>(null);
+  const [locationCountry, setLocationCountry] = useState<string | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationMessage, setLocationMessage] = useState(
     "Pulsa el botón para buscar usuarios cercanos.",
@@ -359,12 +361,14 @@ export default function HomeScreen() {
 
       if (!(await Location.hasServicesEnabledAsync())) {
         setDeviceLocation(null);
+        setLocationCity(null);
+        setLocationCountry(null);
         setLocationMessage(
           "La ubicación del dispositivo está desactivada. Actívala en Ajustes y vuelve a intentarlo.",
         );
         Alert.alert(
           "Activa la ubicación",
-          "Activa manualmente la ubicación del dispositivo para poder abrir el mapa.",
+          "Activa manualmente la ubicación del dispositivo para poder mostrar tu ciudad y país.",
         );
         return false;
       }
@@ -372,12 +376,14 @@ export default function HomeScreen() {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== "granted") {
         setDeviceLocation(null);
+        setLocationCity(null);
+        setLocationCountry(null);
         setLocationMessage(
           "Permiso de ubicación denegado. Puedes habilitarlo en Ajustes para ordenar los usuarios por cercanía.",
         );
         Alert.alert(
           "Permiso de ubicación denegado",
-          "Permite el acceso a la ubicación cuando quieras usar el mapa.",
+          "Permite el acceso a la ubicación cuando quieras mostrar tu ciudad y país.",
         );
         return false;
       }
@@ -386,16 +392,38 @@ export default function HomeScreen() {
         accuracy: Location.Accuracy.Balanced,
       });
 
-      setDeviceLocation({
+      const nextLocation = {
         latitude: current.coords.latitude,
         longitude: current.coords.longitude,
-      });
+      };
+
+      setDeviceLocation(nextLocation);
+
+      let city = "Ciudad desconocida";
+      let country = "País desconocido";
+
+      try {
+        const address = await Location.reverseGeocodeAsync(nextLocation);
+        city =
+          address[0]?.city ??
+          address[0]?.subregion ??
+          address[0]?.region ??
+          city;
+        country = address[0]?.country ?? country;
+      } catch {
+        // La ubicación sigue siendo válida aunque no haya dirección disponible.
+      }
+
+      setLocationCity(city);
+      setLocationCountry(country);
       setLocationMessage(
         "Ubicación actualizada. Usuarios ordenados por cercanía.",
       );
       return true;
     } catch {
       setDeviceLocation(null);
+      setLocationCity(null);
+      setLocationCountry(null);
       setLocationMessage(
         "No se pudo obtener la ubicación. Comprueba la señal del dispositivo y vuelve a intentarlo.",
       );
@@ -954,6 +982,12 @@ export default function HomeScreen() {
             </Pressable>
             {deviceLocation ? (
               <>
+                <Text style={{ color: "#F8FAFC", fontSize: 18, fontWeight: "700", marginTop: 16 }}>
+                  {locationCity ?? "Ciudad desconocida"}
+                </Text>
+                <Text style={{ color: "#94A3B8", marginTop: 4 }}>
+                  {locationCountry ?? "País desconocido"}
+                </Text>
                 <Text style={{ color: "#00CFFF", marginTop: 16 }}>
                   {deviceLocation.latitude.toFixed(4)},{" "}
                   {deviceLocation.longitude.toFixed(4)}
