@@ -13,6 +13,7 @@ import {
 
 import { AnalogClock } from "@/components/analog-clock/analog-clock";
 import { AppShell } from "@/components/app-shell/app-shell";
+import { Mapa } from "@/components/mapa";
 import { useAppContext } from "@/context/app-context";
 import UsersScreen from "@/screens/users-screen";
 
@@ -94,6 +95,7 @@ export default function HomeScreen() {
   const [locationCity, setLocationCity] = useState<string | null>(null);
   const [locationCountry, setLocationCountry] = useState<string | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [isMapVisible, setIsMapVisible] = useState(false);
   const [locationMessage, setLocationMessage] = useState(
     "Pulsa el botón para buscar usuarios cercanos.",
   );
@@ -481,6 +483,15 @@ export default function HomeScreen() {
       return false;
     } finally {
       setIsLoadingLocation(false);
+    }
+  }
+
+  async function handleOpenMap() {
+    const locationReady =
+      Boolean(deviceLocation) || (await handleGetLocation());
+
+    if (locationReady) {
+      setIsMapVisible(true);
     }
   }
 
@@ -1098,6 +1109,23 @@ export default function HomeScreen() {
                 {isLoadingLocation ? "Buscando..." : "Usar mi ubicación"}
               </Text>
             </Pressable>
+            <Pressable
+              disabled={isLoadingLocation}
+              onPress={handleOpenMap}
+              style={{
+                alignItems: "center",
+                backgroundColor: theme.surface,
+                borderColor: "#00D9FF",
+                borderRadius: 13,
+                borderWidth: 1,
+                marginTop: 10,
+                padding: 12,
+              }}
+            >
+              <Text style={{ color: "#00D9FF", fontWeight: "800" }}>
+                Abrir mapa interactivo
+              </Text>
+            </Pressable>
             {deviceLocation ? (
               <>
                 <Text
@@ -1143,6 +1171,77 @@ export default function HomeScreen() {
               </>
             ) : null}
           </View>
+          <Modal
+            animationType="slide"
+            transparent
+            visible={isMapVisible}
+            onRequestClose={() => setIsMapVisible(false)}
+          >
+            <View
+              style={{
+                backgroundColor: theme.background,
+                flex: 1,
+                padding: 20,
+                paddingTop: 48,
+              }}
+            >
+              <View
+                style={{
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 16,
+                }}
+              >
+                <Text style={{ color: theme.text, fontSize: 22, fontWeight: "800" }}>
+                  Mapa interactivo
+                </Text>
+                <Pressable
+                  onPress={() => setIsMapVisible(false)}
+                  style={{
+                    borderColor: theme.border,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}
+                >
+                  <Text style={{ color: theme.muted, fontWeight: "700" }}>
+                    Cerrar
+                  </Text>
+                </Pressable>
+              </View>
+              {deviceLocation ? (
+                <Mapa
+                  center={{
+                    latitude: deviceLocation.latitude,
+                    longitude: deviceLocation.longitude,
+                    title: "Mi ubicación",
+                  }}
+                  points={users
+                    .filter(
+                      (user) => user.latitude != null && user.longitude != null,
+                    )
+                    .map((user) => ({
+                      latitude: user.latitude as number,
+                      longitude: user.longitude as number,
+                      title: user.name,
+                    }))}
+                  style={{
+                    borderColor: theme.border,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    flex: 1,
+                    overflow: "hidden",
+                  }}
+                />
+              ) : (
+                <Text style={{ color: theme.muted }}>
+                  Necesitas permitir la ubicación para mostrar el mapa.
+                </Text>
+              )}
+            </View>
+          </Modal>
         </View>
       ) : null}
     </AppShell>

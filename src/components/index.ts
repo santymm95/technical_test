@@ -25,3 +25,6 @@ export { WebBadge } from "./web-badge";
 // UI Components
 export { Collapsible } from "./ui/collapsible";
 
+// Interactive Map
+export { Mapa } from "./mapa";
+
